@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NARA Voice</string>
+    <string name="accessibility_service_label">NARA Voice — Screen Assistant</string>
+    <string name="accessibility_service_summary">Lets NARA read the current screen and assist with taps and typing on your command.</string>
+    <string name="accessibility_service_description">NARA Voice uses accessibility to understand visible screen content only when you ask, to help you interact with apps that do not offer deep links. NARA never reads password fields, never bypasses authentication, and never monitors you in the background. You can disable this service at any time.</string>
+    <string name="notification_listener_label">NARA Voice — Notifications</string>
+</resources>

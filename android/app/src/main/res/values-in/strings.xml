@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NARA Voice</string>
+    <string name="accessibility_service_label">NARA Voice — Asisten Layar</string>
+    <string name="accessibility_service_summary">Memungkinkan NARA membaca layar aktif serta membantu ketuk dan ketik hanya atas perintah Anda.</string>
+    <string name="accessibility_service_description">NARA Voice menggunakan aksesibilitas untuk memahami isi layar yang terlihat hanya saat Anda memintanya, dan membantu berinteraksi dengan aplikasi yang tidak menyediakan deep link. NARA tidak pernah membaca kolom sandi, tidak melewati autentikasi, dan tidak memantau Anda di latar belakang. Layanan ini dapat Anda matikan kapan saja.</string>
+    <string name="notification_listener_label">NARA Voice — Notifikasi</string>
+</resources>
