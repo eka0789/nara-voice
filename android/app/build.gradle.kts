@@ -46,6 +46,17 @@ android {
         }
     }
 
+    signingConfigs {
+        // Enable every signature scheme on the debug key used for release:
+        // v1 (JAR) keeps older/OEM package installers happy, v2/v3 cover
+        // modern Android. Maximum sideload compatibility costs nothing here.
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
         release {
             // Signed with the debug key so the artifact is installable out of the box.
