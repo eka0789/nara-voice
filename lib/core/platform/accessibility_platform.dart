@@ -18,8 +18,14 @@ class AccessibilityPlatform {
     }
   }
 
-  Future<void> openAccessibilitySettings() =>
-      _channel.invokeMethod<void>('openAccessibilitySettings');
+  /// Best-effort navigation to Android accessibility settings.
+  Future<void> openAccessibilitySettings() async {
+    try {
+      await _channel.invokeMethod<void>('openAccessibilitySettings');
+    } on PlatformException {
+      // Ignore — the Permission center still reflects the real state.
+    }
+  }
 
   Future<ScreenContext> inspectScreen() async {
     try {

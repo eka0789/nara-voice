@@ -40,5 +40,12 @@ class PermissionsPlatform {
     }
   }
 
-  Future<void> openAppSettings() => _channel.invokeMethod<void>('openAppSettings');
+  /// Best-effort navigation to the app's system settings page.
+  Future<void> openAppSettings() async {
+    try {
+      await _channel.invokeMethod<void>('openAppSettings');
+    } on PlatformException {
+      // Ignore.
+    }
+  }
 }

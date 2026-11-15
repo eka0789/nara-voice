@@ -44,7 +44,13 @@ class TtsService {
     await ensureReady();
     if (!_ready) return;
     _speaking = true;
-    await _platform.ttsSpeak(id: 'nara-${DateTime.now().microsecondsSinceEpoch}', text: text, locale: locale);
+    await _platform.ttsSpeak(
+      id: 'nara-${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      locale: locale,
+      pitch: pitch,
+      rate: rate,
+    );
   }
 
   Future<void> stop() async {

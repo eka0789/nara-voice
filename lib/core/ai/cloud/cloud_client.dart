@@ -72,6 +72,10 @@ Rules:
     required List<Map<String, String>> history,
     required List<Map<String, Object?>> tools,
   }) async {
+    // Disabled or unconfigured cloud AI must never reach the network —
+    // otherwise every command waits out the full timeout before the
+    // offline NLU takes over (freezes the assistant when offline).
+    if (!_config.isUsable) return null;
     try {
       final body = jsonEncode(<String, Object?>{
         'model': _model,

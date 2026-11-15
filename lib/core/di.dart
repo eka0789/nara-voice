@@ -51,7 +51,15 @@ class SettingsController extends StateNotifier<AsyncValue<NaraSettings>> {
     try {
       final settings = await _store.load();
       state = AsyncValue.data(settings);
-      await _applyCloud(settings.cloudEnabled);
+      // Cloud configuration failure (e.g. a broken AndroidKeyStore on some
+      // OEM devices) must never flip the whole settings state to error —
+      // that would trap the app on an eternal boot spinner. Local features
+      // stay fully usable; cloud sync is just not configured.
+      try {
+        await _applyCloud(settings.cloudEnabled);
+      } catch (_) {
+        // Cloud sync stays inactive; Settings reports the honest state.
+      }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -70,15 +78,24 @@ class SettingsController extends StateNotifier<AsyncValue<NaraSettings>> {
 
   Future<void> update(NaraSettings settings) async {
     state = AsyncValue.data(settings);
-    await _store.save(settings);
-    await _applyCloud(settings.cloudEnabled);
+    try {
+      await _store.save(settings);
+      await _applyCloud(settings.cloudEnabled);
+    } catch (_) {
+      // Persisting failed (storage backend issue); the UI keeps the chosen
+      // value for this session instead of throwing a zone error on toggle.
+    }
   }
 
   Future<CloudCredentials> credentials() => _store.loadCredentials();
 
   Future<void> saveCredentials(CloudCredentials credentials) async {
-    await _store.saveCredentials(credentials);
-    await _applyCloud(true);
+    try {
+      await _store.saveCredentials(credentials);
+      await _applyCloud(true);
+    } catch (_) {
+      // Same best-effort contract as [update].
+    }
   }
 
   /// Honest status for the Settings screen: 'ready' | 'missing_key' | 'off'.

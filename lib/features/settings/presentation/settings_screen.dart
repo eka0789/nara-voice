@@ -22,6 +22,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _keyController = TextEditingController();
   String? _appVersion;
   bool? _firebaseActive;
+  String? _cloudStatusKey;
+  Future<String>? _cloudStatusFuture;
+
+  /// Memoizes the cloud-status future so slider/switch rebuilds don't re-read
+  /// secure storage on every frame.
+  Future<String> _cloudStatus(bool enabled) {
+    final key = enabled ? 'on' : 'off';
+    if (_cloudStatusFuture == null || _cloudStatusKey != key) {
+      _cloudStatusKey = key;
+      _cloudStatusFuture = ref.read(settingsProvider.notifier).cloudStatus(enabled);
+    }
+    return _cloudStatusFuture!;
+  }
 
   @override
   void initState() {
@@ -116,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SwitchListTile(
             title: Text(l10n.cloudAi),
             subtitle: FutureBuilder<String>(
-              future: ref.read(settingsProvider.notifier).cloudStatus(settings.cloudEnabled),
+              future: _cloudStatus(settings.cloudEnabled),
               builder: (context, snapshot) {
                 final status = snapshot.data ?? (settings.cloudEnabled ? 'ready' : 'off');
                 return Text(

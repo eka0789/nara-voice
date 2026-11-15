@@ -209,6 +209,10 @@ class VoiceHandler(private val context: Context) {
 
     private fun ttsInit(): Map<String, Any?> {
         if (tts != null && ttsReady) {
+            // Re-announce readiness: if the Dart side missed the original
+            // event (subscription churn), a retry would otherwise time out
+            // forever while the engine is actually usable.
+            emit("tts", "ready", null)
             return mapOf("ready" to true, "language" to ttsLanguage.toLanguageTag())
         }
         ttsReady = false

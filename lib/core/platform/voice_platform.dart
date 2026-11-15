@@ -143,14 +143,36 @@ class VoicePlatform {
     }
   }
 
-  Future<void> stopStt() => _channel.invokeMethod<void>('stopStt');
+  /// Best-effort stop: a failed native stop must never wedge the UI.
+  Future<void> stopStt() async {
+    try {
+      await _channel.invokeMethod<void>('stopStt');
+    } on PlatformException {
+      // Ignore — stopping an already-stopped/failed recognizer is a no-op.
+    }
+  }
 
-  Future<void> cancelStt() => _channel.invokeMethod<void>('cancelStt');
+  /// Best-effort cancel (see [stopStt]).
+  Future<void> cancelStt() async {
+    try {
+      await _channel.invokeMethod<void>('cancelStt');
+    } on PlatformException {
+      // Ignore.
+    }
+  }
 
   /// Initialises TTS; readiness arrives later through [events] (`TtsStart` is
   /// utterance start, readiness is signalled by a `tts ready` event mapped to
   /// [TtsStart] with an empty id — see native handler emissions).
-  Future<void> ttsInit() => _channel.invokeMethod<void>('ttsInit');
+  /// Failures surface as a `tts init_failed` event instead of an exception so
+  /// the unawaited call cannot raise a zone error.
+  Future<void> ttsInit() async {
+    try {
+      await _channel.invokeMethod<void>('ttsInit');
+    } on PlatformException {
+      // The engine emits `init_failed` through the event stream as well.
+    }
+  }
 
   Future<void> ttsSpeak({
     required String id,
@@ -172,7 +194,14 @@ class VoicePlatform {
     }
   }
 
-  Future<void> ttsStop() => _channel.invokeMethod<void>('ttsStop');
+  /// Best-effort stop of current utterance.
+  Future<void> ttsStop() async {
+    try {
+      await _channel.invokeMethod<void>('ttsStop');
+    } on PlatformException {
+      // Ignore.
+    }
+  }
 
   void dispose() {
     _subscription?.cancel();

@@ -18,8 +18,14 @@ class NotificationsPlatform {
     }
   }
 
-  Future<void> openListenerSettings() =>
-      _channel.invokeMethod<void>('openListenerSettings');
+  /// Best-effort navigation to Android notification-listener settings.
+  Future<void> openListenerSettings() async {
+    try {
+      await _channel.invokeMethod<void>('openListenerSettings');
+    } on PlatformException {
+      // Ignore — the Permission center still reflects the real state.
+    }
+  }
 
   Future<List<NotificationItem>> getRecent({int limit = 10}) async {
     try {

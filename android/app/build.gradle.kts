@@ -37,6 +37,15 @@ android {
         versionName = flutter.versionName
     }
 
+    packaging {
+        jniLibs {
+            // Compress native libraries so the APK installs on every device
+            // package installer (some OEM/Go installers reject APKs whose
+            // .so files are stored uncompressed with INSTALL_FAILED_INVALID_APK).
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             // Signed with the debug key so the artifact is installable out of the box.

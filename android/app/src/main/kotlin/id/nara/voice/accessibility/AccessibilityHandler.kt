@@ -44,7 +44,9 @@ class AccessibilityHandler(private val context: Context) {
                 result.success(mapOf("launched" to true))
             }
             "inspectScreen" -> requireService(result) { service ->
-                service.performInspect { json -> result.success(mapFromJson(json)) }
+                // The service builds plain Kotlin maps/lists — directly
+                // encodable by StandardMessageCodec.
+                service.performInspect { snapshot -> result.success(snapshot) }
             }
             "tapElement" -> requireService(result) { service ->
                 val element = JSONObject(call.argument<String>("element") ?: "{}")
@@ -76,15 +78,6 @@ class AccessibilityHandler(private val context: Context) {
             return
         }
         block(current)
-    }
-
-    private fun mapFromJson(json: JSONObject): Map<String, Any?> {
-        val map = HashMap<String, Any?>()
-        for (key in json.keys()) {
-            val value = json.get(key)
-            map[key] = if (value == JSONObject.NULL) null else value
-        }
-        return map
     }
 
     fun dispose() {

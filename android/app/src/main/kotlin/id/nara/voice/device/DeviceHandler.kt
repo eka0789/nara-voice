@@ -16,10 +16,14 @@ class DeviceHandler(private val context: Context) {
 
     fun register(messenger: BinaryMessenger) {
         MethodChannel(messenger, ChannelRegistry.CHANNEL_DEVICE).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getDeviceInfo" -> result.success(deviceInfo())
-                "getBattery" -> result.success(batteryStatus())
-                else -> result.notImplemented()
+            try {
+                when (call.method) {
+                    "getDeviceInfo" -> result.success(deviceInfo())
+                    "getBattery" -> result.success(batteryStatus())
+                    else -> result.notImplemented()
+                }
+            } catch (e: Exception) {
+                result.error("UNSUPPORTED", e.message ?: "Unexpected device-info failure", null)
             }
         }
     }

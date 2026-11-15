@@ -58,30 +58,49 @@ class NaraAccessibilityService : AccessibilityService() {
 
     // ===== Inspection =====
 
-    fun performInspect(onDone: (JSONObject) -> Unit) {
+    /**
+     * Builds the snapshot with plain Kotlin maps/lists ONLY. org.json types
+     * (JSONObject/JSONArray) are NOT encodable by Flutter's
+     * StandardMessageCodec — returning them throws IllegalArgumentException
+     * on the main thread and kills the process.
+     */
+    fun performInspect(onDone: (Map<String, Any?>) -> Unit) {
         executor.execute {
-            val json = inspectNow()
-            runOnMain { onDone(json) }
+            val snapshot: Map<String, Any?> = try {
+                inspectNow()
+            } catch (e: Exception) {
+                // A worker-thread failure must neither crash the process nor
+                // leave the Dart future dangling: report an honest empty state.
+                mapOf(
+                    "status" to "empty",
+                    "timestamp" to System.currentTimeMillis(),
+                    "visibleText" to "",
+                    "elements" to emptyList<Map<String, Any?>>(),
+                    "truncated" to false,
+                    "nodeCount" to 0,
+                )
+            }
+            runOnMain { onDone(snapshot) }
         }
     }
 
-    private fun inspectNow(): JSONObject {
+    private fun inspectNow(): Map<String, Any?> {
         val root = rootInActiveWindow
-        val output = JSONObject()
-        output.put("timestamp", System.currentTimeMillis())
+        val output = HashMap<String, Any?>()
+        output["timestamp"] = System.currentTimeMillis()
         if (root == null) {
-            output.put("status", "empty")
+            output["status"] = "empty"
             return output
         }
         try {
-            output.put("status", "ok")
-            output.put("packageName", root.packageName?.toString())
+            output["status"] = "ok"
+            output["packageName"] = root.packageName?.toString()
             if (Build.VERSION.SDK_INT >= 24) {
                 val window = windows.firstOrNull { it.isActive || it.isFocused }
-                output.put("windowTitle", window?.title?.toString())
+                output["windowTitle"] = window?.title?.toString()
             }
             val textBuilder = StringBuilder()
-            val elements = JSONArray()
+            val elements = ArrayList<Map<String, Any?>>()
             var nodeCount = 0
             var truncated = false
             val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -103,22 +122,22 @@ class NaraAccessibilityService : AccessibilityService() {
                     val description = node.contentDescription?.toString()?.trim()
                     val className = node.className?.toString()
                     if (node.isClickable || node.isEditable || node.isScrollable || node.isCheckable) {
-                        val element = JSONObject()
-                        element.put("id", "e${elements.length()}")
-                        element.put("text", text)
-                        element.put("contentDescription", description)
-                        element.put("className", className)
-                        element.put("viewId", node.viewIdResourceName)
-                        element.put("clickable", node.isClickable)
-                        element.put("editable", node.isEditable)
-                        element.put("scrollable", node.isScrollable)
-                        element.put("checkable", node.isCheckable)
-                        element.put("checked", node.isChecked)
+                        val element = HashMap<String, Any?>()
+                        element["id"] = "e${elements.size}"
+                        element["text"] = text
+                        element["contentDescription"] = description
+                        element["className"] = className
+                        element["viewId"] = node.viewIdResourceName
+                        element["clickable"] = node.isClickable
+                        element["editable"] = node.isEditable
+                        element["scrollable"] = node.isScrollable
+                        element["checkable"] = node.isCheckable
+                        element["checked"] = node.isChecked
                         val bounds = Rect()
                         node.getBoundsInScreen(bounds)
-                        element.put("bounds", JSONArray().put(bounds.left).put(bounds.top).put(bounds.right).put(bounds.bottom))
-                        element.put("visible", node.isVisibleToUser)
-                        elements.put(element)
+                        element["bounds"] = listOf(bounds.left, bounds.top, bounds.right, bounds.bottom)
+                        element["visible"] = node.isVisibleToUser
+                        elements.add(element)
                     }
                     if (!text.isNullOrEmpty()) {
                         appendVisibleText(textBuilder, text)
@@ -134,19 +153,19 @@ class NaraAccessibilityService : AccessibilityService() {
                 }
             }
 
-            output.put("visibleText", textBuilder.toString().take(MAX_TEXT_LENGTH))
-            output.put("elements", elements)
-            output.put("truncated", truncated)
-            output.put("nodeCount", nodeCount)
+            output["visibleText"] = textBuilder.toString().take(MAX_TEXT_LENGTH)
+            output["elements"] = elements
+            output["truncated"] = truncated
+            output["nodeCount"] = nodeCount
 
             root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.let { focused ->
                 if (!focused.isPassword) {
-                    val focusedJson = JSONObject()
-                    focusedJson.put("text", focused.text?.toString())
-                    focusedJson.put("viewId", focused.viewIdResourceName)
-                    focusedJson.put("editable", focused.isEditable)
-                    focusedJson.put("className", focused.className?.toString())
-                    output.put("focused", focusedJson)
+                    val focusedMap = HashMap<String, Any?>()
+                    focusedMap["text"] = focused.text?.toString()
+                    focusedMap["viewId"] = focused.viewIdResourceName
+                    focusedMap["editable"] = focused.isEditable
+                    focusedMap["className"] = focused.className?.toString()
+                    output["focused"] = focusedMap
                 }
             }
         } finally {
@@ -164,32 +183,45 @@ class NaraAccessibilityService : AccessibilityService() {
 
     fun tapElement(element: JSONObject, onDone: (Boolean) -> Unit) {
         executor.execute {
-            val performed = findNodeBySignature(element) { node -> node.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
-                ?: tapAtBounds(element.optJSONArray("bounds"))
+            val performed: Boolean = try {
+                findNodeBySignature(element) { node -> node.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+                    ?: tapAtBounds(element.optJSONArray("bounds"))
+            } catch (e: Exception) {
+                false // Stale nodes / OEM quirks: report failure, never crash.
+            }
             runOnMain { onDone(performed) }
         }
     }
 
     fun inputText(element: JSONObject, value: String, onDone: (Boolean) -> Unit) {
         executor.execute {
-            val performed = findNodeBySignature(element, requireEditable = true) { node ->
-                val args = Bundle()
-                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
-                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            val performed: Boolean = try {
+                findNodeBySignature(element, requireEditable = true) { node ->
+                    val args = Bundle()
+                    args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
+                    node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                } == true
+            } catch (e: Exception) {
+                false
             }
-            runOnMain { onDone(performed == true) }
+            runOnMain { onDone(performed) }
         }
     }
 
     fun scroll(forward: Boolean, onDone: (Boolean) -> Unit) {
         executor.execute {
-            val root = rootInActiveWindow
-            var performed = false
-            if (root != null) {
-                performed = findScrollable(root, forward)
-                root.recycleCompat()
+            val performed: Boolean = try {
+                val root = rootInActiveWindow
+                var done = false
+                if (root != null) {
+                    done = findScrollable(root, forward)
+                    root.recycleCompat()
+                }
+                if (!done) done = gestureSwipe(forward)
+                done
+            } catch (e: Exception) {
+                false
             }
-            if (!performed) performed = gestureSwipe(forward)
             runOnMain { onDone(performed) }
         }
     }

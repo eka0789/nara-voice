@@ -89,11 +89,22 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
   bool _busy = false;
 
   Future<void> _bootstrap() async {
-    final settings = await _ref.read(settingsStoreProvider).load();
-    final available = await _speech.isAvailable();
-    state = state.copyWith(listeningAvailable: available);
-    await _ref.read(appLookupProvider).warmUp();
-    _wireSpeech(settings.locale);
+    var locale = 'id';
+    try {
+      final settings = await _ref.read(settingsStoreProvider).load();
+      locale = settings.locale;
+      final available = await _speech.isAvailable();
+      state = state.copyWith(listeningAvailable: available);
+      try {
+        await _ref.read(appLookupProvider).warmUp();
+      } catch (_) {
+        // Catalog warming is best-effort; NLU still resolves via the registry.
+      }
+    } catch (_) {
+      // Settings load failed — the mic must still work with defaults.
+      state = state.copyWith(listeningAvailable: true);
+    }
+    _wireSpeech(locale);
   }
 
   void _wireSpeech(String locale) {
@@ -245,8 +256,18 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
 
   /// Public confirmation actions for the UI confirmation card.
   Future<void> confirmPendingPlan() async {
-    if (state.pendingPlan == null) return;
-    await _confirmPending();
+    if (state.pendingPlan == null || _busy) return;
+    _busy = true;
+    try {
+      await _confirmPending();
+    } catch (e) {
+      state = state.copyWith(
+        voiceState: VoiceState.error,
+        statusHint: 'Terjadi kesalahan internal: ${_short(e.toString())}',
+      );
+    } finally {
+      _busy = false;
+    }
   }
 
   Future<void> cancelPendingPlan() async {
@@ -266,6 +287,12 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
   }
 
   void _stashForConfirmation(ExecutionPlan plan, String locale) {
+    // Defensive: an empty plan would crash the firstWhere fallback below
+    // (asserts are compiled out in release). Nothing to confirm anyway.
+    if (plan.steps.isEmpty) {
+      state = state.copyWith(voiceState: VoiceState.idle);
+      return;
+    }
     final highRisk = plan.steps.firstWhere(
       (s) => s.action.riskLevel == RiskLevel.high,
       orElse: () => plan.steps.first,

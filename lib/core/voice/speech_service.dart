@@ -29,7 +29,14 @@ class SpeechService {
     _subscription?.cancel();
     _subscription = _platform.events.listen(_onEvent);
     _listening = true;
-    await _platform.startStt(localeTag);
+    try {
+      await _platform.startStt(localeTag);
+    } catch (_) {
+      // Native start failed (permission/service): release the flag so the
+      // next attempt is not silently swallowed by the listening guard.
+      _listening = false;
+      rethrow;
+    }
   }
 
   Future<void> stop() async {

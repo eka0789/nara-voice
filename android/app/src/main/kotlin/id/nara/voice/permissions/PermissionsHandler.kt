@@ -98,6 +98,11 @@ class PermissionsHandler(
         result.success(mapOf("granted" to granted))
     }
 
+    /** Drops the pending reply when the Flutter engine is torn down. */
+    fun dispose() {
+        pendingResult = null
+    }
+
     companion object {
         const val REQUEST_MIC = 4301
         const val REQUEST_NOTIF = 4302

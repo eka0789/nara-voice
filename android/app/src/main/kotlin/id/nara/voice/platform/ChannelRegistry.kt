@@ -63,5 +63,7 @@ object ChannelRegistry {
         appsHandler = null
         notificationsHandler = null
         deviceHandler = null
+        permissionsHandler?.dispose()
+        permissionsHandler = null
     }
 }

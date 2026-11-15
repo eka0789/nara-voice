@@ -46,6 +46,10 @@ class IntentActionsHandler(
         }
     }
 
+    /** Runs contact-provider lookups off the main thread (ANR-safe). */
+    private val contactExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     fun onContactPicked(approved: Boolean, uri: Uri?) {
         val callback = contactCallback ?: return
         contactCallback = null
@@ -53,35 +57,38 @@ class IntentActionsHandler(
             callback.success(mapOf("picked" to false))
             return
         }
-        val projection = arrayOf(
-            ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.Contacts._ID,
-        )
-        val outcome: Map<String, Any?> = try {
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val id = cursor.getString(1)
-                    val name = cursor.getString(0) ?: ""
-                    var phone: String? = null
-                    context.contentResolver.query(
-                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                        arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                        arrayOf(id),
-                        null,
-                    )?.use { phoneCursor ->
-                        if (phoneCursor.moveToFirst()) phone = phoneCursor.getString(0)
+        contactExecutor.execute {
+            val projection = arrayOf(
+                ContactsContract.Contacts.DISPLAY_NAME,
+                ContactsContract.Contacts._ID,
+            )
+            val outcome: Map<String, Any?> = try {
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getString(1)
+                        val name = cursor.getString(0) ?: ""
+                        var phone: String? = null
+                        context.contentResolver.query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                            arrayOf(id),
+                            null,
+                        )?.use { phoneCursor ->
+                            if (phoneCursor.moveToFirst()) phone = phoneCursor.getString(0)
+                        }
+                        mapOf("picked" to true, "name" to name, "phone" to phone)
+                    } else {
+                        mapOf("picked" to false)
                     }
-                    mapOf("picked" to true, "name" to name, "phone" to phone)
-                } else {
-                    mapOf("picked" to false)
-                }
-            } ?: mapOf("picked" to false)
-        } catch (e: SecurityException) {
-            // The user revoked contacts access between pick and query — treat as cancel.
-            mapOf("picked" to false)
+                } ?: mapOf("picked" to false)
+            } catch (e: SecurityException) {
+                // The user revoked contacts access between pick and query — treat as cancel.
+                mapOf("picked" to false)
+            }
+            // MethodChannel results must complete on the platform main thread.
+            mainHandler.post { callback.success(outcome) }
         }
-        callback.success(outcome)
     }
 
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
@@ -106,8 +113,10 @@ class IntentActionsHandler(
                 insertCalendarEvent(
                     title = requireText(call.argument("title")),
                     description = call.argument<String>("description"),
-                    beginMillis = call.argument<Double>("beginMillis")?.toLong(),
-                    endMillis = call.argument<Double>("endMillis")?.toLong(),
+                    // Dart ints arrive as java.lang.Long through the standard
+                    // codec — reading them as Double throws ClassCastException.
+                    beginMillis = call.argument<Number>("beginMillis")?.toLong(),
+                    endMillis = call.argument<Number>("endMillis")?.toLong(),
                     allDay = call.argument<Boolean>("allDay") ?: false,
                 ),
             )
