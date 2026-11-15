@@ -218,11 +218,15 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
       partialTranscript: '',
       clearStatusHint: true,
     );
-    _ref.read(conversationMemoryProvider).addUserMessage(text);
+    final settings = await _ref.read(settingsStoreProvider).load();
+    final locale = settings.locale.startsWith('id') ? 'id' : 'en';
+    _ref
+        .read(conversationMemoryProvider)
+        .addUserMessage(text, language: locale);
 
     try {
       final orchestrator = _ref.read(orchestratorProvider);
-      final outcome = await orchestrator.plan(text);
+      final outcome = await orchestrator.plan(text, locale: locale);
       final memory = _ref.read(conversationMemoryProvider);
 
       switch (outcome) {

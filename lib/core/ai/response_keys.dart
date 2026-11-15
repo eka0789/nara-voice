@@ -6,6 +6,9 @@ enum ResponseKey {
   clarifyAppNotFound,
   clarifyMessageContent,
   clarifyEmailBody,
+  clarifyPhoneNumber,
+  clarifyAlarmTime,
+  clarifyTimerDuration,
 
   // Direct answers
   answerHelp,
@@ -27,6 +30,24 @@ enum ResponseKey {
   summaryNotifications,
   summaryDeviceInfo,
   summaryWebSearch,
+
+  // Universal control summaries
+  summaryTapElement,
+  summaryTypeText,
+  summaryGoBack,
+  summaryGoHome,
+  summaryRecents,
+  summaryNotificationShade,
+  summaryQuickSettings,
+  summaryScreenshot,
+  summaryVolumeUp,
+  summaryVolumeDown,
+  summaryMute,
+  summaryFlashlightOn,
+  summaryFlashlightOff,
+  summaryDial,
+  summaryAlarm,
+  summaryTimer,
 
   // Execution outcomes
   outcomeCompleted,

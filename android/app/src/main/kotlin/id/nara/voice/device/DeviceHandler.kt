@@ -3,16 +3,30 @@ package id.nara.voice.device
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import id.nara.voice.platform.ChannelRegistry
+import id.nara.voice.platform.NaraErrors
 
 /**
- * Read-only device facts used to ground assistant responses.
+ * Read-only device facts plus universal device controls (volume, torch).
  */
 class DeviceHandler(private val context: Context) {
+
+    private val audio: AudioManager?
+        get() = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+
+    private val camera: CameraManager?
+        get() = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+
+    /** Last torch state we set; systems report no absolute state without a callback. */
+    private var torchOn = false
 
     fun register(messenger: BinaryMessenger) {
         MethodChannel(messenger, ChannelRegistry.CHANNEL_DEVICE).setMethodCallHandler { call, result ->
@@ -20,6 +34,10 @@ class DeviceHandler(private val context: Context) {
                 when (call.method) {
                     "getDeviceInfo" -> result.success(deviceInfo())
                     "getBattery" -> result.success(batteryStatus())
+                    "volumeUp" -> result.success(adjustVolume(AudioManager.ADJUST_RAISE))
+                    "volumeDown" -> result.success(adjustVolume(AudioManager.ADJUST_LOWER))
+                    "toggleMute" -> result.success(toggleMute())
+                    "setTorch" -> result.success(setTorch(call.argument<Boolean>("on") ?: true))
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {
@@ -27,6 +45,47 @@ class DeviceHandler(private val context: Context) {
             }
         }
     }
+
+    /** Media volume with the system volume HUD so the user sees the change. */
+    private fun adjustVolume(direction: Int): Map<String, Any?> {
+        val manager = audio ?: throw NaraError("Audio service unavailable")
+        manager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
+        val max = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val current = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        return mapOf(
+            "performed" to true,
+            "level" to if (max > 0) (current * 100 / max) else null,
+            "muted" to manager.isStreamMute(AudioManager.STREAM_MUSIC),
+        )
+    }
+
+    private fun toggleMute(): Map<String, Any?> {
+        val manager = audio ?: throw NaraError("Audio service unavailable")
+        val direction =
+            if (manager.isStreamMute(AudioManager.STREAM_MUSIC)) AudioManager.ADJUST_UNMUTE
+            else AudioManager.ADJUST_MUTE
+        manager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
+        return mapOf(
+            "performed" to true,
+            "muted" to manager.isStreamMute(AudioManager.STREAM_MUSIC),
+        )
+    }
+
+    /** Camera flash torch (normal FLASHLIGHT permission; no user prompt). */
+    private fun setTorch(on: Boolean): Map<String, Any?> {
+        val manager = camera ?: throw NaraError("Camera service unavailable")
+        val torchCamera = manager.cameraIdList.firstOrNull { id ->
+            val characteristics = manager.getCameraCharacteristics(id)
+            characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true &&
+                characteristics.get(CameraCharacteristics.LENS_FACING) ==
+                CameraCharacteristics.LENS_FACING_BACK
+        } ?: throw NaraError("No flashlight available on this device")
+        manager.setTorchMode(torchCamera, on)
+        torchOn = on
+        return mapOf("performed" to true, "on" to on)
+    }
+
+    private class NaraError(override val message: String) : RuntimeException(message)
 
     private fun deviceInfo(): Map<String, Any?> {
         val packageInfo = try {
@@ -45,6 +104,7 @@ class DeviceHandler(private val context: Context) {
                 if (Build.VERSION.SDK_INT >= 28) it.longVersionCode else it.versionCode.toLong()
             },
             "locale" to context.resources.configuration.locales[0].toLanguageTag(),
+            "torchOn" to torchOn,
         )
     }
 

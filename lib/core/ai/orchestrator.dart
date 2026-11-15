@@ -59,8 +59,13 @@ class Orchestrator {
 
   // ===== Planning =====
 
-  Future<PlanningOutcome> plan(String transcript) async {
-    final locale = _memory.messages.lastOrNull?.language ??
+  Future<PlanningOutcome> plan(String transcript, {String? locale}) async {
+    // Response language follows the app's configured locale when provided —
+    // the user's explicit choice beats keyword guessing ("naikkan volume"
+    // carries no Indonesian keyword but must still be answered in the app
+    // language). Falls back to session language, then keyword detection.
+    final lang = locale ??
+        _memory.messages.lastOrNull?.language ??
         detectLocale(transcript);
 
     // Cloud first when configured; fall back to offline NLU on any failure.
@@ -68,11 +73,11 @@ class Orchestrator {
     if (cloud != null) {
       final reply = await cloud.request(
         transcript: transcript,
-        locale: locale,
+        locale: lang,
         history: _historyForCloud(),
         tools: _registry.describeForCloud(),
       );
-      final fromCloud = _mapCloudReply(reply, locale, transcript);
+      final fromCloud = _mapCloudReply(reply, lang, transcript);
       if (fromCloud != null) return fromCloud;
     }
 
@@ -80,7 +85,7 @@ class Orchestrator {
       transcript,
       pending: _memory.pending,
     );
-    return _mapNluOutcome(outcome, locale);
+    return _mapNluOutcome(outcome, lang);
   }
 
   String detectLocale(String text) {

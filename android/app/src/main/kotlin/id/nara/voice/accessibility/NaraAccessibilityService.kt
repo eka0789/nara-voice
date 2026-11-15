@@ -227,8 +227,48 @@ class NaraAccessibilityService : AccessibilityService() {
     }
 
     fun goBack(onDone: (Boolean) -> Unit) {
-        val performed = performGlobalAction(GLOBAL_ACTION_BACK)
+        performGlobal(GLOBAL_ACTION_BACK, onDone)
+    }
+
+    /** Performs one of the AccessibilityService global actions on the main thread. */
+    fun performGlobal(action: Int, onDone: (Boolean) -> Unit) {
+        val performed = performGlobalAction(action)
         runOnMain { onDone(performed) }
+    }
+
+    /**
+     * Types into the currently focused input field of the active window
+     * (universal control: works in any app). Password fields are refused.
+     */
+    fun typeText(value: String, onDone: (Boolean) -> Unit) {
+        executor.execute {
+            val performed: Boolean = try {
+                val root = rootInActiveWindow
+                if (root == null) {
+                    false
+                } else {
+                    try {
+                        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                        val canType = focused != null && !focused.isPassword
+                        if (!canType) {
+                            false
+                        } else {
+                            val args = Bundle()
+                            args.putCharSequence(
+                                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                                value,
+                            )
+                            focused!!.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    } finally {
+                        root.recycleCompat()
+                    }
+                }
+            } catch (e: Exception) {
+                false
+            }
+            runOnMain { onDone(performed) }
+        }
     }
 
     fun currentApp(onDone: (String?) -> Unit) {

@@ -7,12 +7,15 @@ YouTube/Spotify/Maps/web, prepares WhatsApp messages & emails, drafts calendar
 events, opens settings, reads notifications, and can even read your screen —
 always honestly reporting what succeeded and what did not.
 
-## What works out of the box (production v1)
+## What works out of the box (production v1.1 — universal control)
 
 - ✅ Voice commands (STT streaming + partials, TTS with barge-in)
 - ✅ Bilingual NLU (ID/EN) — offline, deterministic, tested; ambiguity → clarifying question, never a guess
 - ✅ App discovery (icons, search, launch) without `QUERY_ALL_PACKAGES`
 - ✅ Deep links & integrations: WhatsApp, Telegram, Gmail, Maps, YouTube, Spotify, Calendar, Settings
+- ✅ **Universal app control** (opt-in accessibility layer): tap any visible control by name ("tekan tombol play"), type into any focused field ("ketik halo"), navigate anywhere ("kembali", "pulang", "aplikasi terbaru", "tarik notifikasi") — works inside *every* installed app
+- ✅ **Device control**: volume up/down/mute, flashlight on/off, screenshot
+- ✅ **Phone & clock handoffs**: dialer prefilled ("telepon 0812…"), alarm draft ("pasang alarm jam 6"), timer draft ("atur timer 10 menit") — always prepare-only, you confirm
 - ✅ Multi-step workflows ("buka YouTube **dan** cari tutorial Flutter") with live progress + retry that never duplicates completed steps
 - ✅ Risk engine: HIGH-risk actions (e.g. direct WhatsApp draft to a phone number) require spoken/tapped confirmation
 - ✅ Optional screen understanding + notification reader (opt-in, password fields never read, nothing persisted)
@@ -25,13 +28,14 @@ always honestly reporting what succeeded and what did not.
 ```bash
 flutter pub get
 flutter analyze      # 0 issues
-flutter test         # 53 tests
+flutter test         # 77 tests
 flutter build apk --release
 adb install build/app/outputs/flutter-apk/app-release.apk
 ```
 
 **Android 7.0+ (API 24)**, targetSdk 36. First mic tap requests `RECORD_AUDIO`;
-everything else is opt-in from the in-app Permission center.
+everything else is opt-in from the in-app Permission center. Tap/type/screen
+control needs the accessibility service enabled once (Permission center).
 
 ## Try saying
 
@@ -39,6 +43,16 @@ everything else is opt-in from the in-app Permission center.
 |---|---|
 | "Buka WhatsApp" | "Open WhatsApp" |
 | "Buka YouTube dan cari tutorial Flutter" | "Open YouTube and search Flutter tutorial" |
+| "Tekan tombol play" | "Tap the play button" |
+| "Buka Spotify dan tekan play" (multi-step) | "Open Spotify and tap play" |
+| "Ketik halo dunia" | "Type hello world" |
+| "Kembali" / "Pulang" / "Aplikasi terbaru" | "Go back" / "Go home" / "Recent apps" |
+| "Naikkan volume" / "Bisukan" | "Turn the volume up" / "Mute" |
+| "Nyalakan senter" / "Matikan senter" | "Turn on / off the flashlight" |
+| "Screenshot layar" | "Take a screenshot" |
+| "Telepon 081234567890" | "Dial 081234567890" |
+| "Pasang alarm jam 6" | "Set an alarm for 6" |
+| "Atur timer 10 menit" | "Set a 10-minute timer" |
 | "Navigasi ke rumah sakit terdekat" | "Navigate to the nearest hospital" |
 | "Kirim pesan WhatsApp ke 0812… isi saya sudah di jalan" | "Send a WhatsApp message to +62… saying I'm on my way" |
 | "Siapkan email ke budi@contoh.com subjek rapat isi sampai jumpa besok" | "Compose an email to budi@example.com subject meeting body see you tomorrow" |
@@ -46,7 +60,6 @@ everything else is opt-in from the in-app Permission center.
 | "Buka pengaturan wifi" | "Open Wi-Fi settings" |
 | "Baca notifikasi terbaru" | "Read my recent notifications" |
 | "Baca isi layar" | "What's on my screen?" |
-| "Buka Bluetooth lalu buka pengaturan wifi" (multi-step) | compound commands via "and/then" |
 
 ## Architecture
 

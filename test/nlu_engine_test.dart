@@ -157,4 +157,148 @@ void main() {
       expect((second as NluPlan).drafts.single.tool, 'open_application');
     });
   });
+
+  group('universal control (any app via accessibility)', () {
+    test('tap a visible control', () {
+      final outcome = nlu.parse('tekan tombol play') as NluPlan;
+      expect(outcome.drafts.single.tool, 'tap_by_label');
+      expect(outcome.drafts.single.args['label'], 'tombol play');
+    });
+
+    test('tap strips the trailing target app', () {
+      final outcome = nlu.parse('tekan play di spotify') as NluPlan;
+      expect(outcome.drafts.single.tool, 'tap_by_label');
+      expect(outcome.drafts.single.args['label'], 'play');
+    });
+
+    test('tap inside a compound command routes to the opened app context', () {
+      final outcome = nlu.parse('buka spotify dan tekan play') as NluPlan;
+      expect(outcome.drafts.length, 2);
+      // "buka spotify" resolves through the Spotify integration matcher
+      // (same as "buka spotify lalu putar jazz" in the compound group).
+      expect(outcome.drafts[0].tool, 'open_spotify');
+      expect(outcome.drafts[1].tool, 'tap_by_label');
+      expect(outcome.drafts[1].args['label'], 'play');
+    });
+
+    test('english tap', () {
+      final outcome = nlu.parse('tap the search button') as NluPlan;
+      expect(outcome.drafts.single.tool, 'tap_by_label');
+      expect(outcome.drafts.single.args['label'], contains('search'));
+    });
+
+    test('type into focused field', () {
+      final outcome = nlu.parse('ketik halo dunia') as NluPlan;
+      expect(outcome.drafts.single.tool, 'type_text');
+      expect(outcome.drafts.single.args['value'], 'halo dunia');
+    });
+
+    test('system navigation: back, home, recents, shade', () {
+      expect((nlu.parse('kembali') as NluPlan).drafts.single.tool, 'go_back');
+      expect((nlu.parse('pulang') as NluPlan).drafts.single.tool, 'go_home');
+      expect((nlu.parse('aplikasi terbaru') as NluPlan).drafts.single.tool, 'open_recents');
+      expect(
+        (nlu.parse('tarik notifikasi') as NluPlan).drafts.single.tool,
+        'open_notification_shade',
+      );
+      expect(
+        (nlu.parse('buka panel notifikasi') as NluPlan).drafts.single.tool,
+        'open_notification_shade',
+      );
+    });
+
+    test('navigation with a target goes to the app, not the system action', () {
+      final outcome = nlu.parse('kembali ke youtube') as NluPlan;
+      expect(outcome.drafts.single.tool, 'open_application');
+    });
+
+    test('screenshot beats screen understanding', () {
+      final outcome = nlu.parse('screenshot layar ini') as NluPlan;
+      expect(outcome.drafts.single.tool, 'take_screenshot');
+    });
+
+    test('volume up, down, mute', () {
+      final up = nlu.parse('naikkan volume') as NluPlan;
+      expect(up.drafts.single.tool, 'volume_control');
+      expect(up.drafts.single.args['action'], 'up');
+
+      final down = nlu.parse('kecilkan suara') as NluPlan;
+      expect(down.drafts.single.tool, 'volume_control');
+      expect(down.drafts.single.args['action'], 'down');
+
+      final mute = nlu.parse('bisukan volume') as NluPlan;
+      expect(mute.drafts.single.tool, 'volume_control');
+      expect(mute.drafts.single.args['action'], 'mute');
+    });
+
+    test('sound settings are not hijacked by volume control', () {
+      final outcome = nlu.parse('buka pengaturan suara') as NluPlan;
+      expect(outcome.drafts.single.tool, 'open_device_settings');
+      expect(outcome.drafts.single.args['screen'], 'sound');
+    });
+
+    test('flashlight on and off', () {
+      final on = nlu.parse('nyalakan senter') as NluPlan;
+      expect(on.drafts.single.tool, 'toggle_flashlight');
+      expect(on.drafts.single.args['on'], true);
+
+      final off = nlu.parse('matikan senter') as NluPlan;
+      expect(off.drafts.single.tool, 'toggle_flashlight');
+      expect(off.drafts.single.args['on'], false);
+    });
+
+    test('dial with number is prepare-only', () {
+      final outcome = nlu.parse('telepon 081234567890') as NluPlan;
+      expect(outcome.drafts.single.tool, 'dial_number');
+      expect(outcome.drafts.single.args['number'], '081234567890');
+      expect(outcome.drafts.single.risk.index, 1); // medium
+    });
+
+    test('dial without number asks for it, then slot fills', () {
+      final first = nlu.parse('panggil ibu') as NluClarify;
+      expect(first.questionKey, ResponseKey.clarifyPhoneNumber);
+      final second = nlu.parse('081234567890', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'dial_number');
+    });
+
+    test('alarm with time', () {
+      final outcome = nlu.parse('pasang alarm jam 6') as NluPlan;
+      expect(outcome.drafts.single.tool, 'set_alarm');
+      expect(outcome.drafts.single.args['hour'], 6);
+      expect(outcome.drafts.single.args['minute'], 0);
+    });
+
+    test('alarm evening shifts to 24h clock', () {
+      final outcome = nlu.parse('pasang alarm jam 9 malam') as NluPlan;
+      expect(outcome.drafts.single.args['hour'], 21);
+    });
+
+    test('alarm without time asks, then slot fills', () {
+      final first = nlu.parse('pasang alarm') as NluClarify;
+      expect(first.questionKey, ResponseKey.clarifyAlarmTime);
+      final second = nlu.parse('jam 7', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'set_alarm');
+      expect(second.drafts.single.args['hour'], 7);
+    });
+
+    test('timer with duration', () {
+      final outcome = nlu.parse('atur timer 10 menit') as NluPlan;
+      expect(outcome.drafts.single.tool, 'set_timer');
+      expect(outcome.drafts.single.args['seconds'], 600);
+    });
+
+    test('timer without duration asks, then slot fills', () {
+      final first = nlu.parse('pasang timer') as NluClarify;
+      expect(first.questionKey, ResponseKey.clarifyTimerDuration);
+      final second = nlu.parse('5 menit', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'set_timer');
+      expect(second.drafts.single.args['seconds'], 300);
+    });
+
+    test('a fresh command cancels pending universal slots', () {
+      final first = nlu.parse('pasang alarm') as NluClarify;
+      final second = nlu.parse('buka youtube', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'open_application');
+    });
+  });
 }

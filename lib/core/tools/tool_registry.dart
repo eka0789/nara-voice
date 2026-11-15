@@ -10,6 +10,7 @@ import 'tools/app_tools.dart';
 import 'tools/integration_tools.dart';
 import 'tools/notification_tools.dart';
 import 'tools/screen_tools.dart';
+import 'tools/universal_tools.dart';
 
 /// Wires every concrete tool to its platform bridge and provides lookup.
 class ToolRegistry {
@@ -43,8 +44,22 @@ class ToolRegistry {
       TapElementTool(accessibility, screenMemory).name: TapElementTool(accessibility, screenMemory),
       InputTextTool(accessibility, screenMemory).name: InputTextTool(accessibility, screenMemory),
       ScrollScreenTool(accessibility).name: ScrollScreenTool(accessibility),
+      // Universal control of ANY app's UI (accessibility layer).
+      TapByLabelTool(accessibility, screenMemory).name: TapByLabelTool(accessibility, screenMemory),
+      TypeTextTool(accessibility).name: TypeTextTool(accessibility),
+      GoBackTool(accessibility).name: GoBackTool(accessibility),
+      GoHomeTool(accessibility).name: GoHomeTool(accessibility),
+      OpenRecentsTool(accessibility).name: OpenRecentsTool(accessibility),
+      OpenNotificationShadeTool(accessibility).name: OpenNotificationShadeTool(accessibility),
+      OpenQuickSettingsTool(accessibility).name: OpenQuickSettingsTool(accessibility),
+      TakeScreenshotTool(accessibility).name: TakeScreenshotTool(accessibility),
       DeviceInfoTool(device).name: DeviceInfoTool(device),
+      VolumeControlTool(device).name: VolumeControlTool(device),
+      FlashlightTool(device).name: FlashlightTool(device),
       NotificationContextTool(notifications).name: NotificationContextTool(notifications),
+      DialNumberTool(intents).name: DialNumberTool(intents),
+      SetAlarmTool(intents).name: SetAlarmTool(intents),
+      SetTimerTool(intents).name: SetTimerTool(intents),
     };
     return ToolRegistry._(screenMemory, tools);
   }

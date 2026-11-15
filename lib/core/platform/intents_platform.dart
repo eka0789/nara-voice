@@ -92,6 +92,22 @@ class IntentsPlatform {
         'allDay': allDay,
       });
 
+  /// Opens the dialer prefilled — the user presses call (never auto-dial).
+  Future<IntentHandoff> dialNumber(String number) =>
+      _run('dialNumber', {'number': number});
+
+  /// Opens the clock app with a prefilled alarm draft (user saves it).
+  Future<IntentHandoff> setAlarm({
+    required int hour,
+    required int minute,
+    String? label,
+  }) =>
+      _run('setAlarm', {'hour': hour, 'minute': minute, 'label': label});
+
+  /// Opens the clock app with a prefilled countdown timer draft.
+  Future<IntentHandoff> setTimer({required int seconds, String? label}) =>
+      _run('setTimer', {'seconds': seconds, 'label': label});
+
   Future<ContactPickResult> pickContact() async {
     try {
       final raw = await _channel.invokeMethod<Map<Object?, Object?>>('pickContact');

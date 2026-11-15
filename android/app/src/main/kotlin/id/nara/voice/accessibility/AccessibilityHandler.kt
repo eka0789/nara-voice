@@ -1,7 +1,9 @@
 package id.nara.voice.accessibility
 
+import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -64,6 +66,41 @@ class AccessibilityHandler(private val context: Context) {
             "goBack" -> requireService(result) { service ->
                 service.goBack { performed -> result.success(mapOf("performed" to performed)) }
             }
+            "goHome" -> requireService(result) { service ->
+                service.performGlobal(AccessibilityService.GLOBAL_ACTION_HOME) { performed ->
+                    result.success(mapOf("performed" to performed))
+                }
+            }
+            "openRecents" -> requireService(result) { service ->
+                service.performGlobal(AccessibilityService.GLOBAL_ACTION_RECENTS) { performed ->
+                    result.success(mapOf("performed" to performed))
+                }
+            }
+            "openNotificationShade" -> requireService(result) { service ->
+                service.performGlobal(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS) { performed ->
+                    result.success(mapOf("performed" to performed))
+                }
+            }
+            "openQuickSettings" -> requireService(result) { service ->
+                service.performGlobal(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS) { performed ->
+                    result.success(mapOf("performed" to performed))
+                }
+            }
+            "takeScreenshot" -> {
+                if (Build.VERSION.SDK_INT < 28) {
+                    result.error(NaraErrors.UNSUPPORTED, "Screenshot needs Android 9+", null)
+                } else {
+                    requireService(result) { service ->
+                        service.performGlobal(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) { performed ->
+                            result.success(mapOf("performed" to performed))
+                        }
+                    }
+                }
+            }
+            "typeText" -> requireService(result) { service ->
+                val value = requireText(call.argument<String>("value"))
+                service.typeText(value) { performed -> result.success(mapOf("performed" to performed)) }
+            }
             "currentApp" -> requireService(result) { service ->
                 service.currentApp { pkg -> result.success(mapOf("packageName" to pkg)) }
             }
@@ -79,6 +116,10 @@ class AccessibilityHandler(private val context: Context) {
         }
         block(current)
     }
+
+    private fun requireText(value: String?): String =
+        value?.trim().takeUnless { it.isNullOrEmpty() }
+            ?: throw IllegalArgumentException("value is required")
 
     fun dispose() {
         // The service itself is managed by the OS; nothing to release here.

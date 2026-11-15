@@ -63,8 +63,48 @@ class AccessibilityPlatform {
   }
 
   Future<bool> goBack() async {
-    final raw = await _channel.invokeMethod<bool>('goBack');
+    final raw = await _channel.invokeMethod<bool>(
+      'goBack',
+      const <String, Object?>{},
+    );
     return raw ?? false;
+  }
+
+  /// Universal system navigation via the accessibility service. All best-effort.
+  Future<bool> _globalAction(String method) async {
+    try {
+      final raw = await _channel.invokeMethod<bool>(
+        method,
+        const <String, Object?>{},
+      );
+      return raw ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> goHome() => _globalAction('goHome');
+
+  Future<bool> openRecents() => _globalAction('openRecents');
+
+  Future<bool> openNotificationShade() => _globalAction('openNotificationShade');
+
+  Future<bool> openQuickSettings() => _globalAction('openQuickSettings');
+
+  Future<bool> takeScreenshot() => _globalAction('takeScreenshot');
+
+  /// Types [value] into the focused input field of the active window
+  /// (works in any app; refused for password fields).
+  Future<bool> typeText(String value) async {
+    try {
+      final raw = await _channel.invokeMethod<bool>(
+        'typeText',
+        <String, Object?>{'value': value},
+      );
+      return raw ?? false;
+    } on PlatformException {
+      return false;
+    }
   }
 
   Future<String?> currentApp() async {

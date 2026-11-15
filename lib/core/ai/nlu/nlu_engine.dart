@@ -232,6 +232,51 @@ class NluEngine {
           ],
           language: language,
         );
+      case 'dial_number':
+        final phone = _phoneRegex
+            .firstMatch(normalized)
+            ?.group(0)
+            ?.replaceAll(RegExp(r'[\s\-]'), '');
+        if (phone != null && phone.length >= 6) {
+          return NluPlan(
+            drafts: [
+              ActionDraft(
+                tool: 'dial_number',
+                args: {'number': phone},
+                risk: RiskLevel.medium,
+                summaryKey: ResponseKey.summaryDial,
+                summaryArgs: {'number': phone},
+              ),
+            ],
+            language: language,
+          );
+        }
+        return NluClarify(
+          questionKey: ResponseKey.clarifyPhoneNumber,
+          pending: pending,
+          language: language,
+        );
+      case 'set_alarm':
+        final time = _parseAlarmClockTime(normalized);
+        if (time != null) {
+          final label = args['label'] as String?;
+          return _segmentToOutcome(_alarmDraft(time.$1, time.$2, label), language);
+        }
+        return NluClarify(
+          questionKey: ResponseKey.clarifyAlarmTime,
+          pending: pending,
+          language: language,
+        );
+      case 'set_timer':
+        final seconds = _parseDurationSeconds(normalized);
+        if (seconds != null) {
+          return _segmentToOutcome(_timerDraft(seconds), language);
+        }
+        return NluClarify(
+          questionKey: ResponseKey.clarifyTimerDuration,
+          pending: pending,
+          language: language,
+        );
       default:
         return null;
     }
@@ -263,6 +308,13 @@ class NluEngine {
 
     final emailResult = _matchEmail(segment, language);
     if (emailResult != null) return emailResult;
+
+    // Universal control: device + any-app commands via the accessibility
+    // layer. Runs before the settings matcher ("naikkan volume" vs "buka
+    // pengaturan suara") and before open-app ("aplikasi terbaru" is not an
+    // app name).
+    final universal = _matchUniversal(segment);
+    if (universal != null) return universal;
 
     final draft =
         _matchScreenUnderstanding(segment) ??
@@ -697,6 +749,232 @@ class NluEngine {
         expiresAt: DateTime.now().add(const Duration(minutes: 2)),
       ),
     );
+  }
+
+  // ===== universal control: device + any-app UI commands =====
+
+  _SegmentResult? _matchUniversal(String s) {
+    // Screenshot first: the word contains "screen", which would otherwise
+    // collide with screen-understanding matching in the chain below.
+    if (_hasAny(s, const ['screenshot', 'tangkap layar', 'tangkapan layar']) ||
+        _tokens(s).contains('ss')) {
+      return _Draft(ActionDraft(
+        tool: 'take_screenshot',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryScreenshot,
+      ));
+    }
+
+    // Tap a visible control of ANY app ("tekan play", "tap tombol simpan").
+    final tap = _afterAny(s, const ['tekan ', 'tap ', 'klik ', 'press ', 'click ', 'tap on ']);
+    if (tap != null && tap.trim().isNotEmpty) {
+      final label = _trimAt(tap, const [' di ', ' on ', ' pada ']).trim();
+      if (label.isNotEmpty) {
+        return _Draft(ActionDraft(
+          tool: 'tap_by_label',
+          args: <String, Object?>{'label': label},
+          risk: RiskLevel.medium,
+          summaryKey: ResponseKey.summaryTapElement,
+          summaryArgs: {'label': label},
+        ));
+      }
+    }
+
+    // Type into the focused field of the active app.
+    final typed = _afterAny(s, const ['ketik ', 'type ']);
+    if (typed != null && typed.trim().isNotEmpty) {
+      return _Draft(ActionDraft(
+        tool: 'type_text',
+        args: <String, Object?>{'value': typed.trim()},
+        risk: RiskLevel.medium,
+        summaryKey: ResponseKey.summaryTypeText,
+      ));
+    }
+
+    // System navigation — standalone phrases only so "kembali ke youtube"
+    // still opens the app.
+    if (_equalsAny(s, const ['kembali', 'balik', 'back', 'go back', 'ke sebelumnya', 'halaman sebelumnya'])) {
+      return _Draft(ActionDraft(
+        tool: 'go_back',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryGoBack,
+      ));
+    }
+    if (_equalsAny(s, const ['pulang', 'beranda', 'ke beranda', 'home', 'go home', 'layar utama', 'ke layar utama', 'home screen'])) {
+      return _Draft(ActionDraft(
+        tool: 'go_home',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryGoHome,
+      ));
+    }
+    if (_hasAny(s, const ['aplikasi terbaru', 'aplikasi yang baru', 'recent apps', 'app switcher', 'layar terbaru', 'aplikasi berjalan'])) {
+      return _Draft(ActionDraft(
+        tool: 'open_recents',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryRecents,
+      ));
+    }
+    if (_hasAny(s, const ['panel notifikasi', 'tarik notifikasi', 'notification shade', 'pull down', 'tarik ke bawah', 'tray notifikasi'])) {
+      return _Draft(ActionDraft(
+        tool: 'open_notification_shade',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryNotificationShade,
+      ));
+    }
+    if (_hasAny(s, const ['pengaturan cepat', 'quick settings', 'panel cepat'])) {
+      return _Draft(ActionDraft(
+        tool: 'open_quick_settings',
+        args: const <String, Object?>{},
+        summaryKey: ResponseKey.summaryQuickSettings,
+      ));
+    }
+
+    // Volume — never intercept "pengaturan suara" (the settings matcher owns it).
+    final isSettingsWord = _hasAny(s, const ['pengaturan', 'setting']);
+    if (!isSettingsWord && _hasAny(s, const ['volume', 'suara'])) {
+      if (_hasAny(s, const ['naik', 'besar', 'keras', 'tinggi', 'up'])) {
+        return _volumeDraft('up', ResponseKey.summaryVolumeUp);
+      }
+      if (_hasAny(s, const ['turun', 'kecil', 'pelan', 'rendah', 'down'])) {
+        return _volumeDraft('down', ResponseKey.summaryVolumeDown);
+      }
+      if (_hasAny(s, const ['bisukan', 'mute', 'senyap', 'nyalakan suara', 'unmute', 'bunyikan'])) {
+        return _volumeDraft('mute', ResponseKey.summaryMute);
+      }
+    }
+
+    // Flashlight.
+    if (_hasAny(s, const ['senter', 'flashlight', 'lampu kilat', 'torch'])) {
+      final off = _hasAny(s, const ['matikan', 'dimatikan', 'off', 'padam']);
+      return _Draft(ActionDraft(
+        tool: 'toggle_flashlight',
+        args: <String, Object?>{'on': !off},
+        summaryKey: off ? ResponseKey.summaryFlashlightOff : ResponseKey.summaryFlashlightOn,
+      ));
+    }
+
+    // Dialer — prepare-only: needs the number, never guesses contacts.
+    if (_hasAny(s, const ['telepon', 'panggil', 'hubungi', 'call ', 'dial '])) {
+      final phone = _phoneRegex
+          .firstMatch(s)
+          ?.group(0)
+          ?.replaceAll(RegExp(r'[\s\-]'), '');
+      if (phone != null && phone.length >= 6) {
+        return _Draft(ActionDraft(
+          tool: 'dial_number',
+          args: <String, Object?>{'number': phone},
+          risk: RiskLevel.medium,
+          summaryKey: ResponseKey.summaryDial,
+          summaryArgs: {'number': phone},
+        ));
+      }
+      return _Clarify(
+        ResponseKey.clarifyPhoneNumber,
+        PendingSlot(
+          intent: 'dial_number',
+          questionKey: ResponseKey.clarifyPhoneNumber,
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+    }
+
+    // Alarm — ask for the time when missing (slot filling completes it).
+    if (_hasAny(s, const ['alarm'])) {
+      final time = _parseAlarmClockTime(s);
+      if (time != null) {
+        return _alarmDraft(time.$1, time.$2, _afterAny(s, const ['untuk ', 'berlabel ', 'labeled ', 'buat ']));
+      }
+      return _Clarify(
+        ResponseKey.clarifyAlarmTime,
+        PendingSlot(
+          intent: 'set_alarm',
+          questionKey: ResponseKey.clarifyAlarmTime,
+          args: <String, Object?>{
+            'label': ?_afterAny(s, const ['untuk ', 'berlabel ', 'labeled ', 'buat ']),
+          },
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+    }
+
+    // Timer — same contract as alarm.
+    if (_hasAny(s, const ['timer'])) {
+      final seconds = _parseDurationSeconds(s);
+      if (seconds != null) {
+        return _timerDraft(seconds);
+      }
+      return _Clarify(
+        ResponseKey.clarifyTimerDuration,
+        PendingSlot(
+          intent: 'set_timer',
+          questionKey: ResponseKey.clarifyTimerDuration,
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+    }
+
+    return null;
+  }
+
+  _SegmentResult _volumeDraft(String action, ResponseKey key) => _Draft(ActionDraft(
+        tool: 'volume_control',
+        args: <String, Object?>{'action': action},
+        summaryKey: key,
+      ));
+
+  _SegmentResult _alarmDraft(int hour, int minute, String? label) => _Draft(ActionDraft(
+        tool: 'set_alarm',
+        args: <String, Object?>{
+          'hour': hour,
+          'minute': minute,
+          if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+        },
+        risk: RiskLevel.medium,
+        summaryKey: ResponseKey.summaryAlarm,
+        summaryArgs: {'time': '${_two(hour)}:${_two(minute)}'},
+      ));
+
+  _SegmentResult _timerDraft(int seconds) {
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    final shown = mins > 0 ? '$mins menit${secs > 0 ? ' $secs detik' : ''}' : '$secs detik';
+    return _Draft(ActionDraft(
+      tool: 'set_timer',
+      args: <String, Object?>{'seconds': seconds},
+      risk: RiskLevel.medium,
+      summaryKey: ResponseKey.summaryTimer,
+      summaryArgs: {'duration': shown},
+    ));
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
+
+  List<String> _tokens(String s) => s.split(' ').where((t) => t.isNotEmpty).toList();
+
+  bool _equalsAny(String s, List<String> phrases) => phrases.any((p) => s == p);
+
+  /// Alarm time parsing. Unlike calendar timing, a bare "jam 5" defaults to
+  /// the morning: wake-up alarms are the dominant use.
+  (int, int)? _parseAlarmClockTime(String s) {
+    final match = RegExp(r'(?:jam|pukul|at)\s*(\d{1,2})(?:[.:](\d{2}))?').firstMatch(s);
+    if (match == null) return null;
+    var hour = int.tryParse(match.group(1)!) ?? 0;
+    final minute = int.tryParse(match.group(2) ?? '0') ?? 0;
+    final hasPm = RegExp(r'\b(?:pm|p\.m)\b').hasMatch(s);
+    final evening = _hasAny(s, const [' malam', ' sore', ' night']) || hasPm;
+    if (evening && hour < 12) hour += 12;
+    if (hour > 23 || minute > 59) return null;
+    return (hour, minute);
+  }
+
+  int? _parseDurationSeconds(String s) {
+    final match = RegExp(r'(\d+)\s*(jam|hour|menit|minute|min\b|detik|second|sec\b)').firstMatch(s);
+    if (match == null) return null;
+    final n = int.tryParse(match.group(1)!) ?? 0;
+    final unit = match.group(2)!;
+    if (unit.startsWith('jam') || unit.startsWith('hour')) return n * 3600;
+    if (unit.startsWith('menit') || unit.startsWith('minute') || unit.startsWith('min')) return n * 60;
+    return n;
   }
 
   // ===== helpers =====

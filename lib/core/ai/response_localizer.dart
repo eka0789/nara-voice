@@ -21,6 +21,16 @@ class ResponseLocalizer {
         return id ? 'Isi pesannya apa?' : 'What should the message say?';
       case ResponseKey.clarifyEmailBody:
         return id ? 'Isi emailnya apa?' : 'What should the email say?';
+      case ResponseKey.clarifyPhoneNumber:
+        return id
+            ? 'Nomor teleponnya berapa?'
+            : 'Which phone number should I dial?';
+      case ResponseKey.clarifyAlarmTime:
+        return id ? 'Jam berapa alarmnya?' : 'What time should the alarm be set?';
+      case ResponseKey.clarifyTimerDuration:
+        return id
+            ? 'Timernya berapa lama? Misalnya 5 menit.'
+            : 'How long should the timer run? For example 5 minutes.';
       default:
         return id ? 'Bisa dijelaskan lebih detail?' : 'Could you give me more detail?';
     }
@@ -73,6 +83,39 @@ class ResponseLocalizer {
         return id ? 'Info perangkat' : 'Device info';
       case ResponseKey.summaryWebSearch:
         return id ? 'Cari di web: ${_a(draft, 'query')}' : 'Search the web for ${_a(draft, 'query')}';
+      // Universal control
+      case ResponseKey.summaryTapElement:
+        return id ? 'Tekan ${_a(draft, 'label')}' : 'Tap ${_a(draft, 'label')}';
+      case ResponseKey.summaryTypeText:
+        return id ? 'Ketik teks' : 'Type text';
+      case ResponseKey.summaryGoBack:
+        return id ? 'Kembali' : 'Go back';
+      case ResponseKey.summaryGoHome:
+        return id ? 'Ke layar utama' : 'Go home';
+      case ResponseKey.summaryRecents:
+        return id ? 'Buka aplikasi terbaru' : 'Open recent apps';
+      case ResponseKey.summaryNotificationShade:
+        return id ? 'Tarik panel notifikasi' : 'Open notification shade';
+      case ResponseKey.summaryQuickSettings:
+        return id ? 'Buka panel pengaturan cepat' : 'Open quick settings';
+      case ResponseKey.summaryScreenshot:
+        return id ? 'Ambil screenshot' : 'Take a screenshot';
+      case ResponseKey.summaryVolumeUp:
+        return id ? 'Naikkan volume' : 'Turn volume up';
+      case ResponseKey.summaryVolumeDown:
+        return id ? 'Turunkan volume' : 'Turn volume down';
+      case ResponseKey.summaryMute:
+        return id ? 'Bisukan volume' : 'Mute';
+      case ResponseKey.summaryFlashlightOn:
+        return id ? 'Nyalakan senter' : 'Turn on the flashlight';
+      case ResponseKey.summaryFlashlightOff:
+        return id ? 'Matikan senter' : 'Turn off the flashlight';
+      case ResponseKey.summaryDial:
+        return id ? 'Siapkan panggilan ke ${_a(draft, 'number')}' : 'Dial ${_a(draft, 'number')}';
+      case ResponseKey.summaryAlarm:
+        return id ? 'Draf alarm jam ${_a(draft, 'time')}' : 'Alarm draft at ${_a(draft, 'time')}';
+      case ResponseKey.summaryTimer:
+        return id ? 'Draf timer ${_a(draft, 'duration')}' : 'Timer draft for ${_a(draft, 'duration')}';
       default:
         return draft.tool;
     }
@@ -165,6 +208,63 @@ class ResponseLocalizer {
       case 'get_device_information':
         return (data['spoken'] as String?) ??
             (id ? 'Informasi perangkat sudah tampil.' : 'Device information is shown.');
+      // Universal control — grounded in what actually happened.
+      case 'tap_by_label':
+        if (step.status == StepStatus.done && data['performed'] == true) {
+          final label = data['label'];
+          return id
+              ? 'Sudah saya tekan${label != null ? ': "$label"' : ''}.'
+              : 'Tapped${label != null ? ' "$label"' : ''}.';
+        }
+        return id
+            ? 'Elemen itu tidak bisa saya tekan sekarang.'
+            : "I couldn't tap that element right now.";
+      case 'type_text':
+        return (data['performed'] == true)
+            ? (id ? 'Teks sudah diketik di kolom yang aktif.' : 'Text typed into the focused field.')
+            : (id
+                ? 'Tidak ada kolom aktif — sebutkan kolomnya atau buka dulu halamannya.'
+                : 'No focused field — open the page first or name the field.');
+      case 'go_back':
+        return id ? 'Sudah kembali.' : 'Navigated back.';
+      case 'go_home':
+        return id ? 'Sudah di layar utama.' : 'Back on the home screen.';
+      case 'open_recents':
+        return id ? 'Aplikasi terbaru sudah tampil.' : 'Recent apps are shown.';
+      case 'open_notification_shade':
+        return id ? 'Panel notifikasi sudah terbuka.' : 'The notification shade is open.';
+      case 'take_screenshot':
+        return (data['performed'] == true)
+            ? (id ? 'Screenshot sudah diambil oleh sistem.' : 'The screenshot was captured.')
+            : (id ? 'Screenshot tidak berhasil.' : "The screenshot didn't work.");
+      case 'volume_control':
+        final action = data['action'] as String?;
+        if (action == 'mute') {
+          return id
+              ? (data['muted'] == true ? 'Volume dibisukan.' : 'Volume dinyalakan lagi.')
+              : (data['muted'] == true ? 'Volume muted.' : 'Volume unmuted.');
+        }
+        final level = data['level'];
+        return id
+            ? (level != null ? 'Volume sekarang $level%.' : 'Volume sudah diubah.')
+            : (level != null ? 'Volume is now $level%.' : 'Volume adjusted.');
+      case 'toggle_flashlight':
+        return id
+            ? (data['on'] == true ? 'Senter menyala.' : 'Senter dimatikan.')
+            : (data['on'] == true ? 'The flashlight is on.' : 'The flashlight is off.');
+      case 'dial_number':
+        return id
+            ? 'Dialer terbuka dengan nomornya — tekan panggil bila sudah cocok.'
+            : 'The dialer is prefilled — press call when it looks right.';
+      case 'set_alarm':
+        final time = data['time'];
+        return id
+            ? 'Draf alarm${time != null ? ' jam $time' : ''} terbuka — simpan jika sudah sesuai.'
+            : 'The alarm draft${time != null ? ' at $time' : ''} is open — save it if it looks right.';
+      case 'set_timer':
+        return id
+            ? 'Draf timer terbuka — mulai jika sudah sesuai.'
+            : 'The timer draft is open — start it if it looks right.';
       default:
         return id ? 'Langkah selesai.' : 'Step completed.';
     }

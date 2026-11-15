@@ -12,6 +12,13 @@ class QuickCommands extends StatelessWidget {
   static const _commands = <(String, IconData)>[
     ('Buka WhatsApp', Icons.chat_rounded),
     ('Cari tutorial Flutter di YouTube', Icons.smart_display_rounded),
+    ('Tekan tombol play', Icons.touch_app_rounded),
+    ('Ketik halo dunia', Icons.keyboard_rounded),
+    ('Nyalakan senter', Icons.flashlight_on_rounded),
+    ('Naikkan volume', Icons.volume_up_rounded),
+    ('Screenshot layar', Icons.screenshot_rounded),
+    ('Pasang alarm jam 6', Icons.alarm_rounded),
+    ('Telepon 081234567890', Icons.phone_rounded),
     ('Navigasi ke rumah sakit terdekat', Icons.map_rounded),
     ('Siapkan email ke atasan', Icons.alternate_email_rounded),
     ('Buka pengaturan wifi', Icons.wifi_rounded),

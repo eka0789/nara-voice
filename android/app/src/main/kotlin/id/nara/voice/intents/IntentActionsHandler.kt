@@ -120,6 +120,20 @@ class IntentActionsHandler(
                     allDay = call.argument<Boolean>("allDay") ?: false,
                 ),
             )
+            "dialNumber" -> result.success(dialNumber(requireText(call.argument("number"), name = "number")))
+            "setAlarm" -> result.success(
+                setAlarm(
+                    hour = call.argument<Number>("hour")?.toInt() ?: 7,
+                    minute = call.argument<Number>("minute")?.toInt() ?: 0,
+                    label = call.argument<String>("label"),
+                ),
+            )
+            "setTimer" -> result.success(
+                setTimer(
+                    seconds = call.argument<Number>("seconds")?.toInt() ?: 60,
+                    label = call.argument<String>("label"),
+                ),
+            )
             "pickContact" -> {
                 if (contactCallback != null) {
                     result.error(NaraErrors.UNSUPPORTED, "A contact pick is already in progress", null)
@@ -331,5 +345,48 @@ class IntentActionsHandler(
             "handler" to resolved?.activityInfo?.packageName,
             "description" to description,
         )
+    }
+
+    /**
+     * Opens the dialer prefilled — prepare-only: the user presses call.
+     * NARA never places the call itself (no CALL_PHONE permission by design).
+     */
+    private fun dialNumber(number: String): Map<String, Any?> {
+        val digits = number.filter { it.isDigit() || it == '+' }
+        if (digits.length < 3) {
+            throw NaraIntentException(NaraErrors.INVALID_ARGUMENT, "Not a usable phone number: $number")
+        }
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return start(intent, "dialer")
+    }
+
+    /** Opens the clock app with a prefilled alarm draft (user confirms saving). */
+    private fun setAlarm(hour: Int, minute: Int, label: String?): Map<String, Any?> {
+        if (hour !in 0..23 || minute !in 0..59) {
+            throw NaraIntentException(NaraErrors.INVALID_ARGUMENT, "Time out of range: $hour:$minute")
+        }
+        val intent = Intent("android.intent.action.SET_ALARM")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra("android.intent.extra.alarm.HOUR", hour)
+            .putExtra("android.intent.extra.alarm.MINUTES", minute)
+            // Skip-ui false keeps the honesty rule: the clock app shows the
+            // draft and the user presses save.
+            .putExtra("android.intent.extra.alarm.SKIP_UI", false)
+        if (!label.isNullOrBlank()) intent.putExtra("android.intent.extra.alarm.MESSAGE", label)
+        return start(intent, "alarm draft")
+    }
+
+    /** Opens the clock app with a prefilled countdown timer draft. */
+    private fun setTimer(seconds: Int, label: String?): Map<String, Any?> {
+        if (seconds <= 0 || seconds > 24 * 3600) {
+            throw NaraIntentException(NaraErrors.INVALID_ARGUMENT, "Timer length out of range: ${seconds}s")
+        }
+        val intent = Intent("android.intent.action.SET_TIMER")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra("android.intent.extra.alarm.LENGTH_SECONDS", seconds)
+            .putExtra("android.intent.extra.alarm.SKIP_UI", false)
+        if (!label.isNullOrBlank()) intent.putExtra("android.intent.extra.alarm.MESSAGE", label)
+        return start(intent, "timer draft")
     }
 }
