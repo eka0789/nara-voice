@@ -8,6 +8,7 @@ enum NaraPermission {
   notifications,
   accessibility,
   notificationListener,
+  writeSettings,
 }
 
 class PermissionStatusInfo {
@@ -57,6 +58,11 @@ class PermissionService {
         granted: listener,
         canRequest: false,
       ),
+      PermissionStatusInfo(
+        permission: NaraPermission.writeSettings,
+        granted: (status['writeSettings'] as bool?) ?? false,
+        canRequest: false,
+      ),
     ];
   }
 
@@ -71,6 +77,9 @@ class PermissionService {
         return false; // The user toggles it in Android settings.
       case NaraPermission.notificationListener:
         await _ref.read(notificationsPlatformProvider).openListenerSettings();
+        return false;
+      case NaraPermission.writeSettings:
+        await _ref.read(devicePlatformProvider).openWriteSettings();
         return false;
     }
   }

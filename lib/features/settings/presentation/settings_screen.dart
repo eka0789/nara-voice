@@ -125,6 +125,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
+          SwitchListTile(
+            title: Text(l10n.wakeWord),
+            subtitle: Text(l10n.wakeWordDesc,
+                style: TextStyle(fontSize: 12, color: NaraTheme.textSecondary)),
+            value: settings.wakeWordEnabled,
+            onChanged: (v) =>
+                ref.read(settingsProvider.notifier).update(settings.copyWith(wakeWordEnabled: v)),
+          ),
           _sectionTitle(l10n.cloudAi),
           SwitchListTile(
             title: Text(l10n.cloudAi),

@@ -43,6 +43,7 @@ class PermissionsHandler(
                 mapOf(
                     "microphone" to isGranted(Manifest.permission.RECORD_AUDIO),
                     "notifications" to notificationsGranted(),
+                    "writeSettings" to Settings.System.canWrite(context),
                 ),
             )
             "requestMicrophone" -> request(

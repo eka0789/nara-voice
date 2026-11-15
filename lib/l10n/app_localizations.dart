@@ -374,6 +374,18 @@ abstract class AppLocalizations {
   /// **'List recent notification titles on request'**
   String get permListenerDesc;
 
+  /// No description provided for @permBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen brightness control'**
+  String get permBrightness;
+
+  /// No description provided for @permBrightnessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Change screen brightness only when you ask (Modify system settings)'**
+  String get permBrightnessDesc;
+
   /// No description provided for @granted.
   ///
   /// In en, this message translates to:
@@ -583,6 +595,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Result'**
   String get resultCard;
+
+  /// No description provided for @wakeWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake word \"Hey NARA\" (beta)'**
+  String get wakeWord;
+
+  /// No description provided for @wakeWordDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps listening while NARA is open; commands after \"Hey NARA\" are executed'**
+  String get wakeWordDesc;
+
+  /// No description provided for @routines.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily routines'**
+  String get routines;
+
+  /// No description provided for @routinesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No routines yet. Say \"pasang rutin jam 7 buka youtube\" or tap the + button.'**
+  String get routinesEmpty;
+
+  /// No description provided for @addRoutine.
+  ///
+  /// In en, this message translates to:
+  /// **'New routine'**
+  String get addRoutine;
+
+  /// No description provided for @routineTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get routineTime;
+
+  /// No description provided for @routineCommandsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One command per line, e.g. buka whatsapp'**
+  String get routineCommandsHint;
+
+  /// No description provided for @routineDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat daily'**
+  String get routineDaily;
+
+  /// No description provided for @routineTapToRun.
+  ///
+  /// In en, this message translates to:
+  /// **'At the scheduled time NARA sends a notification — tap it to run'**
+  String get routineTapToRun;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
 }
 
 class _AppLocalizationsDelegate

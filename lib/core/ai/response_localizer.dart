@@ -31,6 +31,14 @@ class ResponseLocalizer {
         return id
             ? 'Timernya berapa lama? Misalnya 5 menit.'
             : 'How long should the timer run? For example 5 minutes.';
+      case ResponseKey.clarifyRoutineCommand:
+        return id
+            ? 'Perintah apa yang dijalankan saat waktunya tiba? Misalnya: buka youtube.'
+            : 'Which command should the routine run? For example: open youtube.';
+      case ResponseKey.clarifyRoutineTime:
+        return id
+            ? 'Jam berapa jadwalnya? Misalnya: jam 7 pagi.'
+            : 'What time should it run? For example: at 7 am.';
       default:
         return id ? 'Bisa dijelaskan lebih detail?' : 'Could you give me more detail?';
     }
@@ -116,6 +124,12 @@ class ResponseLocalizer {
         return id ? 'Draf alarm jam ${_a(draft, 'time')}' : 'Alarm draft at ${_a(draft, 'time')}';
       case ResponseKey.summaryTimer:
         return id ? 'Draf timer ${_a(draft, 'duration')}' : 'Timer draft for ${_a(draft, 'duration')}';
+      case ResponseKey.summaryBrightness:
+        return id ? 'Kecerahan ${_a(draft, 'level')}%' : 'Brightness ${_a(draft, 'level')}%';
+      case ResponseKey.summaryRoutine:
+        return id
+            ? 'Jadwal harian jam ${_a(draft, 'time')}: ${_a(draft, 'command')}'
+            : 'Daily routine at ${_a(draft, 'time')}: ${_a(draft, 'command')}';
       default:
         return draft.tool;
     }
@@ -265,6 +279,16 @@ class ResponseLocalizer {
         return id
             ? 'Draf timer terbuka — mulai jika sudah sesuai.'
             : 'The timer draft is open — start it if it looks right.';
+      case 'set_brightness':
+        final level = data['level'];
+        return id
+            ? (level != null ? 'Kecerahan sekarang $level%.' : 'Kecerahan sudah diubah.')
+            : (level != null ? 'Brightness is now $level%.' : 'Brightness adjusted.');
+      case 'create_routine':
+        final time = data['time'];
+        return id
+            ? 'Jadwal dibuat${time != null ? ' jam $time' : ''} — NARA akan mengirim notifikasi, ketuk untuk menjalankan.'
+            : 'Routine scheduled${time != null ? ' at $time' : ''} — NARA will notify you; tap to run it.';
       default:
         return id ? 'Langkah selesai.' : 'Step completed.';
     }
@@ -284,6 +308,11 @@ class ResponseLocalizer {
     }
     if (code == 'TIMEOUT') {
       return id ? 'Ada langkah yang melebihi batas waktu.' : 'One step timed out.';
+    }
+    if (code == 'BRIGHTNESS_PERMISSION') {
+      return id
+          ? 'Aktifkan dulu izin "Kendali kecerahan layar" di Pusat Izin.'
+          : 'Enable "Screen brightness control" in the Permission center first.';
     }
     return id
         ? 'Ada langkah yang gagal: ${_short(step.result?.message)}'

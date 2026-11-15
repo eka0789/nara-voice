@@ -46,6 +46,8 @@
   "permAccessibilityDesc": "Read the visible screen only when you ask. Never reads passwords.",
   "permListener": "Notification reader",
   "permListenerDesc": "List recent notification titles on request",
+  "permBrightness": "Screen brightness control",
+  "permBrightnessDesc": "Change screen brightness only when you ask (Modify system settings)",
   "granted": "Granted",
   "notGranted": "Off",
   "enable": "Enable",
@@ -80,5 +82,15 @@
   "planStepFailed": "Failed",
   "planStepRunning": "Running",
   "planStepPending": "Pending",
-  "resultCard": "Result"
+  "resultCard": "Result",
+  "wakeWord": "Wake word \"Hey NARA\" (beta)",
+  "wakeWordDesc": "Keeps listening while NARA is open; commands after \"Hey NARA\" are executed",
+  "routines": "Daily routines",
+  "routinesEmpty": "No routines yet. Say \"pasang rutin jam 7 buka youtube\" or tap the + button.",
+  "addRoutine": "New routine",
+  "routineTime": "Time",
+  "routineCommandsHint": "One command per line, e.g. buka whatsapp",
+  "routineDaily": "Repeat daily",
+  "routineTapToRun": "At the scheduled time NARA sends a notification — tap it to run",
+  "delete": "Delete"
 }

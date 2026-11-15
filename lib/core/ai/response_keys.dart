@@ -9,6 +9,8 @@ enum ResponseKey {
   clarifyPhoneNumber,
   clarifyAlarmTime,
   clarifyTimerDuration,
+  clarifyRoutineCommand,
+  clarifyRoutineTime,
 
   // Direct answers
   answerHelp,
@@ -48,6 +50,8 @@ enum ResponseKey {
   summaryDial,
   summaryAlarm,
   summaryTimer,
+  summaryBrightness,
+  summaryRoutine,
 
   // Execution outcomes
   outcomeCompleted,

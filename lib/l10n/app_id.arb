@@ -46,6 +46,8 @@
   "permAccessibilityDesc": "Membaca layar hanya saat Anda minta. Tidak pernah membaca sandi.",
   "permListener": "Pembaca notifikasi",
   "permListenerDesc": "Menampilkan judul notifikasi terbaru saat diminta",
+  "permBrightness": "Kendali kecerahan layar",
+  "permBrightnessDesc": "Mengubah kecerahan hanya saat Anda minta (Ubah pengaturan sistem)",
   "granted": "Aktif",
   "notGranted": "Nonaktif",
   "enable": "Aktifkan",
@@ -80,5 +82,15 @@
   "planStepFailed": "Gagal",
   "planStepRunning": "Berjalan",
   "planStepPending": "Menunggu",
-  "resultCard": "Hasil"
+  "resultCard": "Hasil",
+  "wakeWord": "Kata kunci \"Hey NARA\" (beta)",
+  "wakeWordDesc": "Terus mendengarkan selama NARA terbuka; perintah setelah \"Hey NARA\" dijalankan",
+  "routines": "Jadwal rutin",
+  "routinesEmpty": "Belum ada jadwal rutin. Katakan \"pasang rutin jam 7 buka youtube\" atau tekan tombol +.",
+  "addRoutine": "Jadwal baru",
+  "routineTime": "Waktu",
+  "routineCommandsHint": "Satu perintah per baris, misalnya buka whatsapp",
+  "routineDaily": "Ulangi setiap hari",
+  "routineTapToRun": "Saat waktunya NARA mengirim notifikasi — ketuk untuk menjalankan",
+  "delete": "Hapus"
 }

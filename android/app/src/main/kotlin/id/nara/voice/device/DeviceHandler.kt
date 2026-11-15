@@ -6,8 +6,10 @@ import android.content.IntentFilter
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -38,6 +40,11 @@ class DeviceHandler(private val context: Context) {
                     "volumeDown" -> result.success(adjustVolume(AudioManager.ADJUST_LOWER))
                     "toggleMute" -> result.success(toggleMute())
                     "setTorch" -> result.success(setTorch(call.argument<Boolean>("on") ?: true))
+                    "getBrightness" -> result.success(brightness())
+                    "setBrightness" -> result.success(
+                        setBrightness(call.argument<Number>("level")?.toInt() ?: 50),
+                    )
+                    "openWriteSettings" -> result.success(openWriteSettings())
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {
@@ -86,6 +93,45 @@ class DeviceHandler(private val context: Context) {
     }
 
     private class NaraError(override val message: String) : RuntimeException(message)
+
+    // ===== Brightness (WRITE_SETTINGS special access) =====
+
+    private fun brightness(): Map<String, Any?> {
+        val canWrite = Settings.System.canWrite(context)
+        val current = if (canWrite) {
+            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
+        } else {
+            null
+        }
+        return mapOf(
+            "canWrite" to canWrite,
+            "level" to current?.let { (it * 100 / 255) },
+        )
+    }
+
+    /** [level] is 1-100; mapped onto the 1-255 brightness setting. */
+    private fun setBrightness(level: Int): Map<String, Any?> {
+        if (!Settings.System.canWrite(context)) {
+            throw NaraError("Modify-system-settings access is not granted")
+        }
+        val clamped = level.coerceIn(1, 100)
+        val value = (clamped * 255 / 100).coerceIn(1, 255)
+        Settings.System.putInt(
+            context.contentResolver,
+            Settings.System.SCREEN_BRIGHTNESS,
+            value,
+        )
+        return mapOf("performed" to true, "level" to clamped)
+    }
+
+    /** Opens the special-access screen where the user flips "Modify system settings". */
+    private fun openWriteSettings(): Map<String, Any?> {
+        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+            .setData(Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+        return mapOf("launched" to true)
+    }
 
     private fun deviceInfo(): Map<String, Any?> {
         val packageInfo = try {

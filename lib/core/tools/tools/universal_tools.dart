@@ -297,6 +297,61 @@ class VolumeControlTool extends NaraTool {
   }
 }
 
+/// set_brightness — screen brightness 1-100 (WRITE_SETTINGS special access).
+class SetBrightnessTool extends NaraTool {
+  SetBrightnessTool(this._device);
+
+  final DevicePlatform _device;
+
+  @override
+  String get name => 'set_brightness';
+  @override
+  String get description =>
+      'Set the screen brightness (1-100). Requires "Modify system settings" '
+      'special access, requested from the Permission center.';
+
+  @override
+  Map<String, ToolParam> get inputSchema => const <String, ToolParam>{
+        'level': ToolParam(
+          type: ToolParamType.integer,
+          description: 'Absolute brightness 1-100 (100 = brightest)',
+        ),
+        'delta': ToolParam(
+          type: ToolParamType.integer,
+          description: 'Relative change from current brightness (-100..100)',
+        ),
+      };
+  @override
+  RiskLevel get riskLevel => RiskLevel.low;
+
+  @override
+  Future<ActionResult> execute(Map<String, Object?> args, ToolContext context) async {
+    // Check the special access first so the failure is typed and localizable.
+    final status = await _device.getBrightness();
+    if (status['canWrite'] != true) {
+      return ActionResult.failure(
+        'Modify-system-settings access is not granted',
+        'BRIGHTNESS_PERMISSION',
+      );
+    }
+    final delta = args['delta'] as int?;
+    var level = args['level'] as int?;
+    if (level == null && delta != null) {
+      final current = (status['level'] as num?)?.toInt() ?? 50;
+      level = (current + delta).clamp(1, 100);
+    }
+    level ??= 50;
+    final result = await _device.setBrightness(level);
+    if (result['performed'] != true) {
+      return ActionResult.failure('Brightness could not be changed', 'UNSUPPORTED');
+    }
+    return ActionResult.ok(
+      'Brightness set to $level%',
+      {'level': level},
+    );
+  }
+}
+
 /// toggle_flashlight — camera torch (needs no user prompt: normal permission).
 class FlashlightTool extends NaraTool {
   FlashlightTool(this._device);

@@ -13,6 +13,7 @@ class NaraSettings {
     this.ttsPitch = 1.0,
     this.cloudEnabled = false,
     this.memoryEnabled = true,
+    this.wakeWordEnabled = false,
   });
 
   final String locale; // 'id' | 'en'
@@ -22,6 +23,10 @@ class NaraSettings {
   final bool cloudEnabled;
   final bool memoryEnabled;
 
+  /// In-app standby listener: keeps STT running while NARA is open and
+  /// reacts to "Hey NARA" utterances (battery-friendly foreground scope).
+  final bool wakeWordEnabled;
+
   NaraSettings copyWith({
     String? locale,
     bool? ttsEnabled,
@@ -29,6 +34,7 @@ class NaraSettings {
     double? ttsPitch,
     bool? cloudEnabled,
     bool? memoryEnabled,
+    bool? wakeWordEnabled,
   }) {
     return NaraSettings(
       locale: locale ?? this.locale,
@@ -37,6 +43,7 @@ class NaraSettings {
       ttsPitch: ttsPitch ?? this.ttsPitch,
       cloudEnabled: cloudEnabled ?? this.cloudEnabled,
       memoryEnabled: memoryEnabled ?? this.memoryEnabled,
+      wakeWordEnabled: wakeWordEnabled ?? this.wakeWordEnabled,
     );
   }
 }
@@ -56,6 +63,7 @@ class SettingsStore {
   static const _prefsTtsPitch = 'nara.tts.pitch';
   static const _prefsCloudEnabled = 'nara.cloud.enabled';
   static const _prefsMemory = 'nara.memory.enabled';
+  static const _prefsWakeWord = 'nara.wakeword.enabled';
   static const _prefsEndpoint = 'nara.cloud.endpoint';
   static const _prefsModel = 'nara.cloud.model';
   static const _secureKey = 'nara.cloud.apiKey';
@@ -71,6 +79,7 @@ class SettingsStore {
       ttsPitch: prefs.getDouble(_prefsTtsPitch) ?? 1.0,
       cloudEnabled: prefs.getBool(_prefsCloudEnabled) ?? false,
       memoryEnabled: prefs.getBool(_prefsMemory) ?? true,
+      wakeWordEnabled: prefs.getBool(_prefsWakeWord) ?? false,
     );
   }
 
@@ -82,6 +91,7 @@ class SettingsStore {
     await prefs.setDouble(_prefsTtsPitch, settings.ttsPitch);
     await prefs.setBool(_prefsCloudEnabled, settings.cloudEnabled);
     await prefs.setBool(_prefsMemory, settings.memoryEnabled);
+    await prefs.setBool(_prefsWakeWord, settings.wakeWordEnabled);
   }
 
   Future<CloudCredentials> loadCredentials() async {

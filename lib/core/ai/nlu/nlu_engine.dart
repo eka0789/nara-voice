@@ -179,8 +179,11 @@ class NluEngine {
 
   NluOutcome? _fillSlot(String transcript, PendingSlot pending, String language) {
     final normalized = TextNormalizer.normalize(transcript);
-    // A fresh full command cancels slot filling.
-    if (_hasAny(normalized, const ['buka ', 'open ', 'kirim ', 'cari ', 'search ', 'send '])) {
+    // A fresh full command cancels slot filling — EXCEPT for routine
+    // commands, where "buka youtube" is a likely scheduled action, not a
+    // command to run right now.
+    if (pending.intent != 'create_routine' &&
+        _hasAny(normalized, const ['buka ', 'open ', 'kirim ', 'cari ', 'search ', 'send '])) {
       return null;
     }
     final args = Map<String, Object?>.from(pending.args);
@@ -274,6 +277,40 @@ class NluEngine {
         }
         return NluClarify(
           questionKey: ResponseKey.clarifyTimerDuration,
+          pending: pending,
+          language: language,
+        );
+      case 'create_routine':
+        final knownCommand = args['command'] as String?;
+        final knownHour = args['hour'] as int?;
+        if (knownCommand == null) {
+          // Answering the command question; time may already be known.
+          final command = _extractRoutineCommand(normalized) ?? normalized;
+          final hour = args['hour'] as int?;
+          final minute = args['minute'] as int?;
+          if (hour != null) {
+            return _segmentToOutcome(_routineDraft(hour, minute ?? 0, command), language);
+          }
+          return NluClarify(
+            questionKey: ResponseKey.clarifyRoutineTime,
+            pending: PendingSlot(
+              intent: 'create_routine',
+              questionKey: ResponseKey.clarifyRoutineTime,
+              args: <String, Object?>{'command': command},
+              expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+            ),
+            language: language,
+          );
+        }
+        if (knownHour != null) {
+          return _segmentToOutcome(_routineDraft(knownHour, (args['minute'] as int?) ?? 0, knownCommand), language);
+        }
+        final time = _parseAlarmClockTime(normalized);
+        if (time != null) {
+          return _segmentToOutcome(_routineDraft(time.$1, time.$2, knownCommand), language);
+        }
+        return NluClarify(
+          questionKey: ResponseKey.clarifyRoutineTime,
           pending: pending,
           language: language,
         );
@@ -436,6 +473,7 @@ class NluEngine {
 
   String _settingsScreen(String s) {
     if (s.contains('wifi') || s.contains('wi fi')) return 'wifi';
+    if (s.contains('kecerahan') || s.contains('brightness')) return 'display';
     if (s.contains('bluetooth')) return 'bluetooth';
     if (s.contains('tampilan') || s.contains('display')) return 'display';
     if (s.contains('suara') || s.contains('sound')) return 'sound';
@@ -853,6 +891,80 @@ class NluEngine {
       ));
     }
 
+    // Brightness — "cerahkan/gelapkan layar" counts too; "pengaturan
+    // kecerahan" stays with the settings matcher.
+    if ((_hasAny(s, const ['kecerahan', 'brightness']) ||
+            (_hasAny(s, const ['layar', 'screen']) &&
+                _hasAny(s, const ['cerah', 'gelap', 'redup']))) &&
+        !isSettingsWord) {
+      final number = RegExp(r'(\d{1,3})\s*%?').firstMatch(s);
+      if (number != null) {
+        final value = int.tryParse(number.group(1)!) ?? 50;
+        return _Draft(ActionDraft(
+          tool: 'set_brightness',
+          args: <String, Object?>{'level': value.clamp(1, 100)},
+          summaryKey: ResponseKey.summaryBrightness,
+          summaryArgs: {'level': '${value.clamp(1, 100)}'},
+        ));
+      }
+      if (_hasAny(s, const ['penuh', 'maksimal', 'maksimum', 'full', 'max'])) {
+        return _brightnessDraft(100);
+      }
+      if (_hasAny(s, const ['minimum', 'redup', 'dim', 'low'])) {
+        return _brightnessDraft(20);
+      }
+      if (_hasAny(s, const ['naik', 'cerahkan', 'brighter', 'up'])) {
+        return _Draft(ActionDraft(
+          tool: 'set_brightness',
+          args: const <String, Object?>{'delta': 30},
+          summaryKey: ResponseKey.summaryBrightness,
+          summaryArgs: const {'level': '+30'},
+        ));
+      }
+      if (_hasAny(s, const ['turun', 'gelapkan', 'darker', 'down', 'kurang'])) {
+        return _Draft(ActionDraft(
+          tool: 'set_brightness',
+          args: const <String, Object?>{'delta': -30},
+          summaryKey: ResponseKey.summaryBrightness,
+          summaryArgs: const {'level': '-30'},
+        ));
+      }
+    }
+
+    // Scheduled routines — "jadwal" + a recurrence word keeps calendar
+    // requests ("jadwalkan rapat") out of this branch.
+    if (_hasAny(s, const ['rutin', 'setiap hari', 'tiap hari', 'otomatis']) &&
+        _hasAny(s, const ['jadwal', 'jadwalkan', 'pasang', 'buat', 'atur', 'routine', 'schedule'])) {
+      final time = _parseAlarmClockTime(s);
+      final command = _extractRoutineCommand(s);
+      if (time != null && command != null) {
+        return _routineDraft(time.$1, time.$2, command);
+      }
+      if (command != null) {
+        return _Clarify(
+          ResponseKey.clarifyRoutineTime,
+          PendingSlot(
+            intent: 'create_routine',
+            questionKey: ResponseKey.clarifyRoutineTime,
+            args: <String, Object?>{'command': command},
+            expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+          ),
+        );
+      }
+      return _Clarify(
+        ResponseKey.clarifyRoutineCommand,
+        PendingSlot(
+          intent: 'create_routine',
+          questionKey: ResponseKey.clarifyRoutineCommand,
+          args: <String, Object?>{
+            if (time != null) 'hour': time.$1,
+            if (time != null) 'minute': time.$2,
+          },
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+    }
+
     // Dialer — prepare-only: needs the number, never guesses contacts.
     if (_hasAny(s, const ['telepon', 'panggil', 'hubungi', 'call ', 'dial '])) {
       final phone = _phoneRegex
@@ -920,6 +1032,42 @@ class NluEngine {
         tool: 'volume_control',
         args: <String, Object?>{'action': action},
         summaryKey: key,
+      ));
+
+  _SegmentResult _brightnessDraft(int level) => _Draft(ActionDraft(
+        tool: 'set_brightness',
+        args: <String, Object?>{'level': level},
+        summaryKey: ResponseKey.summaryBrightness,
+        summaryArgs: {'level': '$level'},
+      ));
+
+  static final _timePattern = RegExp(r'(?:jam|pukul|at)\s*(\d{1,2})(?:[.:](\d{2}))?');
+
+  /// Pulls the runnable command out of a routine request: removes the time
+  /// phrase and the scheduling markers, leaving "buka youtube" etc.
+  String? _extractRoutineCommand(String s) {
+    var text = s.replaceFirst(_timePattern, ' ');
+    const stopWords = [
+      'setiap hari', 'tiap hari', 'setiap', 'daily', 'lalu', 'untuk',
+      'pasang', 'buat', 'atur', 'jadwalkan', 'jadwal', 'rutin', 'otomatis',
+      'routine', 'schedule', 'sebuah', 'buatkan',
+    ];
+    for (final stop in stopWords) {
+      text = text.replaceAll(' $stop ', ' ');
+      if (text.startsWith('$stop ')) text = text.substring(stop.length + 1);
+      if (text.endsWith(' $stop')) text = text.substring(0, text.length - stop.length - 1);
+    }
+    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.isEmpty) return null;
+    return text;
+  }
+
+  _SegmentResult _routineDraft(int hour, int minute, String command) => _Draft(ActionDraft(
+        tool: 'create_routine',
+        args: <String, Object?>{'hour': hour, 'minute': minute, 'command': command},
+        risk: RiskLevel.medium,
+        summaryKey: ResponseKey.summaryRoutine,
+        summaryArgs: {'time': '${_two(hour)}:${_two(minute)}', 'command': command},
       ));
 
   _SegmentResult _alarmDraft(int hour, int minute, String? label) => _Draft(ActionDraft(

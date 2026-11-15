@@ -150,6 +150,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permListenerDesc => 'List recent notification titles on request';
 
   @override
+  String get permBrightness => 'Screen brightness control';
+
+  @override
+  String get permBrightnessDesc =>
+      'Change screen brightness only when you ask (Modify system settings)';
+
+  @override
   String get granted => 'Granted';
 
   @override
@@ -258,4 +265,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resultCard => 'Result';
+
+  @override
+  String get wakeWord => 'Wake word \"Hey NARA\" (beta)';
+
+  @override
+  String get wakeWordDesc =>
+      'Keeps listening while NARA is open; commands after \"Hey NARA\" are executed';
+
+  @override
+  String get routines => 'Daily routines';
+
+  @override
+  String get routinesEmpty =>
+      'No routines yet. Say \"pasang rutin jam 7 buka youtube\" or tap the + button.';
+
+  @override
+  String get addRoutine => 'New routine';
+
+  @override
+  String get routineTime => 'Time';
+
+  @override
+  String get routineCommandsHint => 'One command per line, e.g. buka whatsapp';
+
+  @override
+  String get routineDaily => 'Repeat daily';
+
+  @override
+  String get routineTapToRun =>
+      'At the scheduled time NARA sends a notification — tap it to run';
+
+  @override
+  String get delete => 'Delete';
 }

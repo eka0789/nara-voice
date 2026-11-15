@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ===== Permissions: minimal set, each tied to a user-visible capability ===== -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -10,6 +11,18 @@
          in the clock app. Neither grants access to private data. -->
     <uses-permission android:name="android.permission.FLASHLIGHT" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Special access requested lazily: only when the user first asks to
+         change screen brightness. The app never writes any other secure
+         setting; granted from the in-app Permission center. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Re-arms routine alarms after a reboot. USE_EXACT_ALARM auto-grants on
+         API 33+ for alarm-clock use cases; SCHEDULE_EXACT_ALARM covers 31-32
+         where it is granted on declaration. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- BIND_ACCESSIBILITY_SERVICE / BIND_NOTIFICATION_LISTENER_SERVICE are
          system-held permissions enforced via the android:permission attribute
          on each service declaration below — never requested by the app. -->
@@ -126,6 +139,16 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Scheduled routines: posts a tap-to-run notification; never acts
+             silently in the background. Also re-arms alarms after reboot. -->
+        <receiver
+            android:name=".routines.NaraRoutineReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"

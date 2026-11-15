@@ -8,6 +8,7 @@ import id.nara.voice.device.DeviceHandler
 import id.nara.voice.intents.IntentActionsHandler
 import id.nara.voice.notifications.NotificationHandler
 import id.nara.voice.permissions.PermissionsHandler
+import id.nara.voice.routines.RoutineHandler
 import id.nara.voice.voice.VoiceHandler
 import io.flutter.plugin.common.BinaryMessenger
 
@@ -24,6 +25,7 @@ object ChannelRegistry {
     const val CHANNEL_NOTIFICATIONS = "nara/notifications"
     const val CHANNEL_PERMISSIONS = "nara/permissions"
     const val CHANNEL_DEVICE = "nara/device"
+    const val CHANNEL_ROUTINES = "nara/routines"
 
     var voiceHandler: VoiceHandler? = null
         private set
@@ -40,6 +42,10 @@ object ChannelRegistry {
     var permissionsHandler: PermissionsHandler? = null
         private set
 
+    /** Mutable-public for [MainActivity] routine-command delivery. */
+    var routinesHandler: RoutineHandler? = null
+        private set
+
     @Synchronized
     fun register(context: Context, messenger: BinaryMessenger, activity: MainActivity) {
         teardown()
@@ -51,6 +57,7 @@ object ChannelRegistry {
         notificationsHandler = NotificationHandler(context).also { it.register(messenger) }
         deviceHandler = DeviceHandler(context).also { it.register(messenger) }
         permissionsHandler = PermissionsHandler(context, activity).also { it.register(messenger) }
+        routinesHandler = RoutineHandler(context).also { it.register(messenger) }
     }
 
     @Synchronized
@@ -65,5 +72,7 @@ object ChannelRegistry {
         deviceHandler = null
         permissionsHandler?.dispose()
         permissionsHandler = null
+        routinesHandler?.dispose()
+        routinesHandler = null
     }
 }

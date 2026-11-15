@@ -15,6 +15,7 @@ import 'platform/intents_platform.dart';
 import 'platform/notifications_platform.dart';
 import 'platform/permissions_platform.dart';
 import 'platform/voice_platform.dart';
+import 'routines/routine_store.dart';
 import 'tools/tool_registry.dart';
 
 // ===== Platform bridges =====
@@ -165,6 +166,7 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
     notifications: ref.watch(notificationsPlatformProvider),
     device: ref.watch(devicePlatformProvider),
     catalogSource: () => ref.read(appCatalogProvider.future),
+    routineStore: ref.watch(routineStoreProvider.notifier),
   );
 });
 

@@ -129,6 +129,85 @@ class IntegrationRegistry {
       capabilities: ['search', 'assistant'],
       deepLinks: ['google://'],
     ),
+    // Popular third-party apps (Indonesia + global). Launch goes through the
+    // live app catalog; deep links give direct entry points.
+    IntegrationEntry(
+      packageName: 'com.shopee.id',
+      displayName: 'Shopee',
+      aliases: ['shopee'],
+      capabilities: ['shopping'],
+      deepLinks: ['shopee://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.shopee.app',
+      displayName: 'Shopee Global',
+      aliases: ['shopee global'],
+      capabilities: ['shopping'],
+      deepLinks: ['shopee://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.tokopedia.tkpd',
+      displayName: 'Tokopedia',
+      aliases: ['tokopedia', 'toped'],
+      capabilities: ['shopping'],
+      deepLinks: ['tokopedia://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.gojek.app',
+      displayName: 'Gojek',
+      aliases: ['gojek', 'go jek'],
+      capabilities: ['transport', 'payments'],
+      deepLinks: ['gojek://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.grabtaxi.passenger',
+      displayName: 'Grab',
+      aliases: ['grab'],
+      capabilities: ['transport', 'payments'],
+      deepLinks: ['grab://'],
+    ),
+    IntegrationEntry(
+      packageName: 'id.dana',
+      displayName: 'DANA',
+      aliases: ['dana'],
+      capabilities: ['payments'],
+      deepLinks: ['dana://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.netflix.mediaclient',
+      displayName: 'Netflix',
+      aliases: ['netflix'],
+      capabilities: ['media', 'video'],
+      deepLinks: ['nflx://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.zhiliaoapp.musically',
+      displayName: 'TikTok',
+      aliases: ['tiktok', 'tik tok'],
+      capabilities: ['social', 'media'],
+      deepLinks: ['snssdk1128://', 'tiktok://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.twitter.android',
+      displayName: 'X',
+      aliases: ['x', 'twitter'],
+      capabilities: ['social'],
+      deepLinks: ['twitter://'],
+    ),
+    IntegrationEntry(
+      packageName: 'com.discord',
+      displayName: 'Discord',
+      aliases: ['discord'],
+      capabilities: ['social', 'messaging'],
+      deepLinks: ['discord://'],
+    ),
+    IntegrationEntry(
+      packageName: 'us.zoom.videomeetings',
+      displayName: 'Zoom',
+      aliases: ['zoom'],
+      capabilities: ['productivity', 'calls'],
+      deepLinks: ['zoomus://'],
+    ),
   ];
 
   /// Finds a known integration by any of its names (already lowercased).

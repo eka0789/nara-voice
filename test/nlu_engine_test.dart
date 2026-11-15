@@ -301,4 +301,76 @@ void main() {
       expect(second.drafts.single.tool, 'open_application');
     });
   });
+
+  group('brightness control', () {
+    test('absolute level', () {
+      final outcome = nlu.parse('kecerahan 50') as NluPlan;
+      expect(outcome.drafts.single.tool, 'set_brightness');
+      expect(outcome.drafts.single.args['level'], 50);
+    });
+
+    test('relative brighten and dim', () {
+      final up = nlu.parse('naikkan kecerahan') as NluPlan;
+      expect(up.drafts.single.args['delta'], 30);
+      final down = nlu.parse('gelapkan layar') as NluPlan;
+      expect(down.drafts.single.args['delta'], -30);
+    });
+
+    test('full and minimum', () {
+      final full = nlu.parse('kecerahan penuh') as NluPlan;
+      expect(full.drafts.single.args['level'], 100);
+      final low = nlu.parse('kecerahan minimum') as NluPlan;
+      expect(low.drafts.single.args['level'], 20);
+    });
+
+    test('brightness settings screen is not hijacked', () {
+      final outcome = nlu.parse('buka pengaturan kecerahan') as NluPlan;
+      expect(outcome.drafts.single.tool, 'open_device_settings');
+      expect(outcome.drafts.single.args['screen'], 'display');
+    });
+
+    test('calendar requests still go to the calendar', () {
+      final outcome = nlu.parse('jadwalkan rapat besok jam 3') as NluPlan;
+      expect(outcome.drafts.single.tool, 'create_calendar_event');
+    });
+  });
+
+  group('scheduled routines', () {
+    test('routine with time and command in one sentence', () {
+      final outcome = nlu.parse('pasang rutin jam 7 buka youtube') as NluPlan;
+      expect(outcome.drafts.single.tool, 'create_routine');
+      expect(outcome.drafts.single.args['hour'], 7);
+      expect(outcome.drafts.single.args['command'], 'buka youtube');
+    });
+
+    test('command before time also parses', () {
+      final outcome = nlu.parse('pasang rutin buka youtube jam 7') as NluPlan;
+      expect(outcome.drafts.single.tool, 'create_routine');
+      expect(outcome.drafts.single.args['hour'], 7);
+      expect(outcome.drafts.single.args['command'], 'buka youtube');
+    });
+
+    test('missing time asks for it, then slot fills', () {
+      final first = nlu.parse('pasang rutin buka youtube') as NluClarify;
+      expect(first.questionKey, ResponseKey.clarifyRoutineTime);
+      final second = nlu.parse('jam 8', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'create_routine');
+      expect(second.drafts.single.args['hour'], 8);
+      expect(second.drafts.single.args['command'], 'buka youtube');
+    });
+
+    test('missing command asks for it, then slot fills', () {
+      final first = nlu.parse('pasang rutin jam 6') as NluClarify;
+      expect(first.questionKey, ResponseKey.clarifyRoutineCommand);
+      final second = nlu.parse('buka whatsapp', pending: first.pending) as NluPlan;
+      expect(second.drafts.single.tool, 'create_routine');
+      expect(second.drafts.single.args['hour'], 6);
+      expect(second.drafts.single.args['command'], 'buka whatsapp');
+    });
+
+    test('plain schedule requests stay calendar routines', () {
+      final outcome = nlu.parse('jadwalkan rapat besok jam 3') as NluPlan;
+      expect(outcome.drafts.single.tool, 'create_calendar_event');
+    });
+  });
 }

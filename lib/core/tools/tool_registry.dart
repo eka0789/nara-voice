@@ -5,8 +5,10 @@ import '../platform/apps_platform.dart';
 import '../platform/device_platform.dart';
 import '../platform/intents_platform.dart';
 import '../platform/notifications_platform.dart';
+import '../routines/routine_store.dart';
 import 'nara_tool.dart';
 import 'tools/app_tools.dart';
+import 'tools/automation_tools.dart';
 import 'tools/integration_tools.dart';
 import 'tools/notification_tools.dart';
 import 'tools/screen_tools.dart';
@@ -23,6 +25,7 @@ class ToolRegistry {
     required NotificationsPlatform notifications,
     required DevicePlatform device,
     required Future<List<AppDescriptor>> Function() catalogSource,
+    required RoutineStore routineStore,
   }) {
     final screenMemory = ScreenMemory();
     final tools = <String, NaraTool>{
@@ -60,6 +63,8 @@ class ToolRegistry {
       DialNumberTool(intents).name: DialNumberTool(intents),
       SetAlarmTool(intents).name: SetAlarmTool(intents),
       SetTimerTool(intents).name: SetTimerTool(intents),
+      SetBrightnessTool(device).name: SetBrightnessTool(device),
+      CreateRoutineTool(routineStore).name: CreateRoutineTool(routineStore),
     };
     return ToolRegistry._(screenMemory, tools);
   }

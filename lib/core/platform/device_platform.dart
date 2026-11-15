@@ -46,4 +46,26 @@ class DevicePlatform {
 
   Future<Map<String, Object?>> setTorch({bool on = true}) =>
       _control('setTorch', {'on': on});
+
+  /// Screen brightness. Returns `canWrite` (special access granted?) and the
+  /// current `level` (1-100) when readable.
+  Future<Map<String, Object?>> getBrightness() => _control('getBrightness');
+
+  /// Sets screen brightness [level] (1-100). Requires the WRITE_SETTINGS
+  /// special access; without it the call reports canWrite=false upstream as
+  /// a typed failure.
+  Future<Map<String, Object?>> setBrightness(int level) =>
+      _control('setBrightness', {'level': level});
+
+  /// Opens the system "Modify system settings" screen for this app.
+  Future<void> openWriteSettings() async {
+    try {
+      await _channel.invokeMethod<void>(
+        'openWriteSettings',
+        const <String, Object?>{},
+      );
+    } on PlatformException {
+      // Ignore — the Permission center still reflects the real state.
+    }
+  }
 }

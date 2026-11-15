@@ -151,6 +151,13 @@ class AppLocalizationsId extends AppLocalizations {
       'Menampilkan judul notifikasi terbaru saat diminta';
 
   @override
+  String get permBrightness => 'Kendali kecerahan layar';
+
+  @override
+  String get permBrightnessDesc =>
+      'Mengubah kecerahan hanya saat Anda minta (Ubah pengaturan sistem)';
+
+  @override
   String get granted => 'Aktif';
 
   @override
@@ -260,4 +267,38 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get resultCard => 'Hasil';
+
+  @override
+  String get wakeWord => 'Kata kunci \"Hey NARA\" (beta)';
+
+  @override
+  String get wakeWordDesc =>
+      'Terus mendengarkan selama NARA terbuka; perintah setelah \"Hey NARA\" dijalankan';
+
+  @override
+  String get routines => 'Jadwal rutin';
+
+  @override
+  String get routinesEmpty =>
+      'Belum ada jadwal rutin. Katakan \"pasang rutin jam 7 buka youtube\" atau tekan tombol +.';
+
+  @override
+  String get addRoutine => 'Jadwal baru';
+
+  @override
+  String get routineTime => 'Waktu';
+
+  @override
+  String get routineCommandsHint =>
+      'Satu perintah per baris, misalnya buka whatsapp';
+
+  @override
+  String get routineDaily => 'Ulangi setiap hari';
+
+  @override
+  String get routineTapToRun =>
+      'Saat waktunya NARA mengirim notifikasi — ketuk untuk menjalankan';
+
+  @override
+  String get delete => 'Hapus';
 }

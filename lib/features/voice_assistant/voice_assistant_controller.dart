@@ -1,14 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ai/orchestrator.dart';
 import '../../core/ai/response_localizer.dart';
 import '../../core/di.dart';
 import '../../core/models/execution.dart';
+import '../../core/routines/routine_store.dart';
 import '../../core/voice/speech_service.dart';
 import '../../core/voice/tts_service.dart';
 import '../../core/voice/voice_state.dart';
+import '../../core/voice/wake_word.dart';
 import '../automation/workflow_engine.dart';
 
 /// A UI-facing result card (screen text, notifications, device info).
@@ -72,8 +75,12 @@ class AssistantUiState {
 
 /// The voice assistant controller: STT → orchestrator → confirmation gate →
 /// execution → TTS, with every state visually represented (spec §7/§13).
-class VoiceAssistantController extends StateNotifier<AssistantUiState> {
+/// Also hosts the in-app "Hey NARA" standby listener and the tap-to-run
+/// replay of scheduled routines.
+class VoiceAssistantController extends StateNotifier<AssistantUiState>
+    with WidgetsBindingObserver {
   VoiceAssistantController(this._ref) : super(const AssistantUiState()) {
+    WidgetsBinding.instance.addObserver(this);
     _speech = _ref.read(speechServiceProvider);
     _tts = _ref.read(ttsServiceProvider);
     _bootstrap();
@@ -87,6 +94,51 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
   StreamSubscription<String?>? _finalsSub;
   StreamSubscription<String>? _errorsSub;
   bool _busy = false;
+  bool _appResumed = true;
+  bool _standbyListening = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appResumed = state == AppLifecycleState.resumed;
+    if (_appResumed) {
+      // A fired routine's tap-to-run notification brought NARA back: replay.
+      unawaited(_consumeRoutineCommands());
+    } else if (_standbyListening) {
+      // Release the mic while NARA is in the background.
+      _standbyListening = false;
+      unawaited(_speech.cancel());
+    }
+  }
+
+  /// Drains commands queued by fired routine notifications and runs them
+  /// through the normal pipeline. Tapping the notification IS the user's
+  /// explicit confirmation — nothing executes without it.
+  Future<void> _consumeRoutineCommands() async {
+    try {
+      final pending = await _ref.read(routinesPlatformProvider).consumePending();
+      for (final commands in pending) {
+        await runCommandSequence(commands);
+      }
+    } catch (_) {
+      // Routine replay is best-effort; the Automations tab shows state.
+    }
+  }
+
+  /// Runs a list of commands one after another (scheduled routines).
+  Future<void> runCommandSequence(List<String> commands) async {
+    for (final text in commands) {
+      await handleSubmit(text);
+    }
+  }
+
+  Future<bool> _wakeEnabled() async {
+    try {
+      final settings = await _ref.read(settingsStoreProvider).load();
+      return settings.wakeWordEnabled;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> _bootstrap() async {
     var locale = 'id';
@@ -105,6 +157,8 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
       state = state.copyWith(listeningAvailable: true);
     }
     _wireSpeech(locale);
+    // Cold start via a routine notification: replay queued commands.
+    await _consumeRoutineCommands();
   }
 
   void _wireSpeech(String locale) {
@@ -115,15 +169,7 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
       state = state.copyWith(partialTranscript: text);
     });
     _finalsSub = _speech.finals.listen((text) {
-      if (text == null) {
-        // Nothing understood — report honestly.
-        state = state.copyWith(
-          voiceState: VoiceState.idle,
-          statusHint: locale == 'id' ? 'Tidak ada suara yang terdeteksi.' : 'No speech detected.',
-        );
-      } else {
-        handleSubmit(text);
-      }
+      unawaited(_onFinal(text, locale));
     });
     _errorsSub = _speech.errors.listen((code) {
       state = state.copyWith(
@@ -131,6 +177,71 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
         statusHint: _sttErrorText(code),
       );
     });
+  }
+
+  /// Routes a final STT result: wake-word standby when enabled, normal flow
+  /// otherwise.
+  Future<void> _onFinal(String? text, String locale) async {
+    try {
+      final wake = await _wakeEnabled();
+      if (wake && _appResumed) {
+        await _handleWakeFinal(text, locale);
+        return;
+      }
+      if (text == null) {
+        // Nothing understood — report honestly.
+        state = state.copyWith(
+          voiceState: VoiceState.idle,
+          statusHint: locale == 'id' ? 'Tidak ada suara yang terdeteksi.' : 'No speech detected.',
+        );
+      } else {
+        await handleSubmit(text);
+      }
+    } catch (_) {
+      // Listener errors must never crash the app.
+    }
+  }
+
+  /// Standby mode: only "Hey NARA …" utterances do anything; everything else
+  /// is ignored and listening restarts.
+  Future<void> _handleWakeFinal(String? text, String locale) async {
+    if (text == null) {
+      await _restartStandby(locale);
+      return;
+    }
+    final command = WakeWord.strip(text);
+    if (command == null) {
+      // No wake word in this utterance — keep standby alive, stay silent.
+      await _restartStandby(locale);
+      return;
+    }
+    if (command.isEmpty) {
+      // Bare "NARA": stop standby so the user regains the floor.
+      _standbyListening = false;
+      state = state.copyWith(
+        voiceState: VoiceState.idle,
+        statusHint: locale == 'id' ? 'Standby dimatikan. Ketuk mic untuk bicara.' : 'Standby stopped. Tap the mic to talk.',
+      );
+      return;
+    }
+    _standbyListening = false;
+    await handleSubmit(command);
+    await _restartStandby(locale);
+  }
+
+  Future<void> _restartStandby(String locale) async {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!_appResumed || _busy || !await _wakeEnabled()) return;
+    if (state.voiceState == VoiceState.listening ||
+        state.voiceState == VoiceState.executing) {
+      return;
+    }
+    _standbyListening = true;
+    try {
+      await _speech.start(locale == 'en' ? 'en-US' : 'id-ID');
+    } catch (_) {
+      _standbyListening = false;
+    }
   }
 
   String _sttErrorText(String code) {
@@ -448,6 +559,7 @@ class VoiceAssistantController extends StateNotifier<AssistantUiState> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _partialsSub?.cancel();
     _finalsSub?.cancel();
     _errorsSub?.cancel();

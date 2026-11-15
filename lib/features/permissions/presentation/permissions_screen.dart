@@ -91,6 +91,8 @@ class _PermissionTile extends StatelessWidget {
         return (l10n.permAccessibility, l10n.permAccessibilityDesc, Icons.visibility_rounded);
       case NaraPermission.notificationListener:
         return (l10n.permListener, l10n.permListenerDesc, Icons.mark_email_unread_rounded);
+      case NaraPermission.writeSettings:
+        return (l10n.permBrightness, l10n.permBrightnessDesc, Icons.brightness_6_rounded);
     }
   }
 
